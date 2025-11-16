@@ -176,7 +176,7 @@ class MyGame extends FlameGame with HasCollisionDetection {
   final int level;
   MyGame({this.level = 1});
   late Base playerBase;
-  double currentGold = 50;
+  double currentGold = 40;
   double goldPerSecond = 0.5;
   GoldGenerator? goldGenerator;
 
@@ -246,8 +246,8 @@ class MyGame extends FlameGame with HasCollisionDetection {
 
     playerBase = Base(
       sprite: baseSprite,
-      position: Vector2(100, size.y - 350),
-      size: Vector2(150, 250),
+      position: Vector2(100, size.y - 300),
+      size: Vector2(100, 200),
       health: baseMaxHealth,
       maxHealth: baseMaxHealth,
       onBaseDestroyed: _onGameOver,
