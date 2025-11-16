@@ -2,6 +2,7 @@ import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
 import 'package:iadenfender/main.dart';
 import 'package:iadenfender/components/enemy.dart';
+import 'package:iadenfender/components/boss.dart';
 import 'package:iadenfender/components/health_bar.dart';
 import 'package:flutter/material.dart';
 
@@ -67,21 +68,28 @@ class PlayerUnit extends PositionComponent
     super.update(dt);
     _attackTimer += dt;
 
-    Enemy? targetEnemy;
+    PositionComponent? target;
     double closestDistance = range;
 
-    for (final component in game.children.whereType<Enemy>()) {
+    for (final component
+        in game.children
+            .where((c) => c is Enemy || c is Boss)
+            .cast<PositionComponent>()) {
       final distance = (component.position - position).length;
       if (distance <= range && component.x > x) {
-        if (targetEnemy == null || distance < closestDistance) {
-          targetEnemy = component;
+        if (target == null || distance < closestDistance) {
+          target = component;
           closestDistance = distance;
         }
       }
     }
 
-    if (targetEnemy != null && _attackTimer >= (1 / attackSpeed)) {
-      targetEnemy.takeDamage(attackDamage);
+    if (target != null && _attackTimer >= (1 / attackSpeed)) {
+      if (target is Enemy) {
+        target.takeDamage(attackDamage);
+      } else if (target is Boss) {
+        target.takeDamage(attackDamage);
+      }
       _attackTimer = 0;
     }
 

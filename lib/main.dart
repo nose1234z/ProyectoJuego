@@ -9,6 +9,7 @@ import 'package:iadenfender/components/player_unit.dart';
 import 'package:iadenfender/components/upgrade_button.dart';
 import 'package:iadenfender/components/gold_generator.dart';
 import 'package:iadenfender/components/barricade.dart';
+import 'package:iadenfender/components/boss.dart';
 
 class Wave {
   final int numEnemies;
@@ -20,18 +21,160 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   Flame.device.fullScreen();
   Flame.device.setLandscape();
-  final game = MyGame();
-  runApp(
-    GestureDetector(
-      onTapDown: (details) => game.handleTap(
-        Vector2(details.localPosition.dx, details.localPosition.dy),
-      ),
-      child: GameWidget(game: game),
-    ),
-  );
+  runApp(MainMenuApp());
+}
+
+class MainMenuApp extends StatefulWidget {
+  const MainMenuApp({super.key});
+  @override
+  State<MainMenuApp> createState() => _MainMenuAppState();
+}
+
+enum AppScreen { inicio, seleccion, juego }
+
+class _MainMenuAppState extends State<MainMenuApp> {
+  AppScreen screen = AppScreen.inicio;
+  int selectedLevel = 1;
+
+  @override
+  Widget build(BuildContext context) {
+    switch (screen) {
+      case AppScreen.inicio:
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          home: Scaffold(
+            body: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.asset(
+                  'assets/images/escenario/inicio.png',
+                  fit: BoxFit.cover,
+                ),
+                Center(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 40,
+                        vertical: 20,
+                      ),
+                      textStyle: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    onPressed: () =>
+                        setState(() => screen = AppScreen.seleccion),
+                    child: const Text('JUGAR'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      case AppScreen.seleccion:
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          home: Scaffold(
+            body: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.asset(
+                  'assets/images/escenario/nivel.jpeg',
+                  fit: BoxFit.cover,
+                ),
+                Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        'Selecciona un nivel',
+                        style: TextStyle(
+                          fontSize: 32,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          shadows: [Shadow(color: Colors.black, blurRadius: 4)],
+                        ),
+                      ),
+                      const SizedBox(height: 40),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 40,
+                            vertical: 20,
+                          ),
+                          textStyle: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        onPressed: () => setState(() {
+                          selectedLevel = 1;
+                          screen = AppScreen.juego;
+                        }),
+                        child: const Text('Nivel 1'),
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 40,
+                            vertical: 20,
+                          ),
+                          textStyle: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        onPressed: () => setState(() {
+                          selectedLevel = 2;
+                          screen = AppScreen.juego;
+                        }),
+                        child: const Text('Nivel 2'),
+                      ),
+                      const SizedBox(height: 40),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 10,
+                          ),
+                        ),
+                        onPressed: () =>
+                            setState(() => screen = AppScreen.inicio),
+                        child: const Text('Volver'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      case AppScreen.juego:
+        final game = MyGame(level: selectedLevel);
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          home: Scaffold(
+            body: GestureDetector(
+              child: GameWidget(game: game),
+              onTapDown: (details) => game.handleTap(
+                Vector2(details.localPosition.dx, details.localPosition.dy),
+              ),
+            ),
+            floatingActionButton: FloatingActionButton(
+              tooltip: 'Volver al menú',
+              onPressed: () => setState(() => screen = AppScreen.inicio),
+              child: const Icon(Icons.home),
+            ),
+          ),
+        );
+    }
+  }
 }
 
 class MyGame extends FlameGame with HasCollisionDetection {
+  final int level;
+  MyGame({this.level = 1});
   late Base playerBase;
   double currentGold = 50;
   double goldPerSecond = 0.5;
@@ -47,17 +190,20 @@ class MyGame extends FlameGame with HasCollisionDetection {
 
   // Unit stats
   int totalAllies = 0;
-  static const int maxAllies = 6;
+  static const int maxAllies = 4;
   double baseUnitDamage = 10.0,
       baseUnitAttackSpeed = 1.0,
-      baseHealingAmount = 20.0,
+      baseHealingAmount = 5.0,
       baseMaxHealth = 100.0,
       baseBarricadeHealth = 150.0;
   Barricade? currentBarricade;
+  Boss? currentBoss;
+  bool isBossPhase = false;
+  double baseBossHealth = 500.0;
 
   // Timers
   double _spawnTimer = 0.0, _currentSpawnInterval = 1.0, _autoHealTimer = 0.0;
-  static const _autoHealInterval = 5.0;
+  static const _autoHealInterval = 15.0;
 
   late TextComponent goldText, waveText, gameStatusText, statsText;
   bool isGameOver = false, gameWon = false;
@@ -69,7 +215,7 @@ class MyGame extends FlameGame with HasCollisionDetection {
       enemiesRemainingInCurrentWave = 0;
 
   late List<Sprite> enemySprites;
-  late Sprite baseSprite, playerUnitSprite;
+  late Sprite baseSprite, playerUnitSprite, bossSprite;
   final Random _random = Random();
   late Map<String, UpgradeButton> upgradeButtons;
 
@@ -86,18 +232,22 @@ class MyGame extends FlameGame with HasCollisionDetection {
       loadSprite('enemies/gusano.png'),
     ]);
 
+    // Load boss sprite (assets/images/boss/ADWARE.png)
+    bossSprite = await loadSprite('boss/ADWARE.png');
+
     try {
-      baseSprite = await loadSprite('base_placeholder.png');
-      playerUnitSprite = await loadSprite('unit_placeholder.png');
+      baseSprite = await loadSprite('base/torre.png');
+      playerUnitSprite = await loadSprite('base/AI.png');
     } catch (e) {
+      // Fallback in case assets are missing
       baseSprite = enemySprites[0];
       playerUnitSprite = enemySprites[1];
     }
 
     playerBase = Base(
       sprite: baseSprite,
-      position: Vector2(100, size.y - 300),
-      size: Vector2(100, 100),
+      position: Vector2(100, size.y - 350),
+      size: Vector2(150, 250),
       health: baseMaxHealth,
       maxHealth: baseMaxHealth,
       onBaseDestroyed: _onGameOver,
@@ -148,7 +298,7 @@ class MyGame extends FlameGame with HasCollisionDetection {
     add(gameStatusText);
 
     statsText = TextComponent(
-      text: 'Aliados: 0\nDaño: 10.0\nVel. Ataque: 1.00x\nCuración: +20/5s',
+      text: 'Aliados: 0\nDaño: 10.0\nVel. Ataque: 1.00x\nCuración: +5/15s',
       position: Vector2(20, size.y - 100),
       anchor: Anchor.bottomLeft,
       textRenderer: TextPaint(
@@ -224,12 +374,12 @@ class MyGame extends FlameGame with HasCollisionDetection {
     add(upgradeButtons['baseHealth']!);
 
     waves = [
-      Wave(numEnemies: 3, spawnInterval: 5.0),
-      Wave(numEnemies: 5, spawnInterval: 6.0),
-      Wave(numEnemies: 8, spawnInterval: 7.0),
-      Wave(numEnemies: 10, spawnInterval: 8.0),
-      Wave(numEnemies: 12, spawnInterval: 9.0),
-      Wave(numEnemies: 15, spawnInterval: 10.0),
+      Wave(numEnemies: 10, spawnInterval: 5.0),
+      Wave(numEnemies: 12, spawnInterval: 6.0),
+      Wave(numEnemies: 15, spawnInterval: 7.0),
+      Wave(numEnemies: 18, spawnInterval: 8.0),
+      Wave(numEnemies: 20, spawnInterval: 9.0),
+      Wave(numEnemies: 25, spawnInterval: 10.0),
     ];
 
     startNextWave();
@@ -254,11 +404,18 @@ class MyGame extends FlameGame with HasCollisionDetection {
       }
     }
 
-    if (enemiesSpawnedInCurrentWave >= enemiesToSpawnInCurrentWave &&
-        enemiesRemainingInCurrentWave <= 0) {
-      if (currentWaveNumber < waves.length) {
-        startNextWave();
-      } else {
+    if (!isBossPhase) {
+      if (enemiesSpawnedInCurrentWave >= enemiesToSpawnInCurrentWave &&
+          enemiesRemainingInCurrentWave <= 0) {
+        if (currentWaveNumber < waves.length) {
+          startNextWave();
+        } else {
+          _startBossPhase();
+        }
+      }
+    } else {
+      // Boss phase: check if boss is defeated
+      if (currentBoss == null || currentBoss!.health <= 0) {
         _onGameWin();
       }
     }
@@ -270,11 +427,81 @@ class MyGame extends FlameGame with HasCollisionDetection {
       'Aliados: $totalAllies\n'
       'Daño: ${(baseUnitDamage * (1 + damageLevel * 0.2)).toStringAsFixed(1)}\n'
       'Vel. Ataque: ${(baseUnitAttackSpeed * (1 + attackSpeedLevel * 0.15)).toStringAsFixed(2)}x\n'
-      'Curación: +${(baseHealingAmount * (1 + healingLevel * 0.3)).toStringAsFixed(0)}/5s';
+      'Curación: +${(baseHealingAmount * (1 + healingLevel * 0.3)).toStringAsFixed(0)}/15s';
+
+  @override
+  void render(Canvas canvas) {
+    super.render(canvas);
+
+    // Draw wave progress bar if not in boss phase
+    if (!isBossPhase && !isGameOver && !gameWon) {
+      const barWidth = 200.0;
+      const barHeight = 20.0;
+      final barX = (size.x / 2) - (barWidth / 2);
+      final barY = 65.0; // Below the wave text
+
+      final killsRequired = enemiesToSpawnInCurrentWave;
+      final killsDone = (killsRequired - enemiesRemainingInCurrentWave).clamp(
+        0,
+        killsRequired,
+      );
+      final progress = killsRequired > 0 ? killsDone / killsRequired : 0.0;
+
+      // Background bar (dark)
+      canvas.drawRect(
+        Rect.fromLTWH(barX, barY, barWidth, barHeight),
+        Paint()
+          ..color = Colors.grey.withValues(alpha: 0.5)
+          ..style = PaintingStyle.fill,
+      );
+
+      // Progress bar (cyan/green)
+      canvas.drawRect(
+        Rect.fromLTWH(barX, barY, barWidth * progress, barHeight),
+        Paint()
+          ..color = Colors.cyan.withValues(alpha: 0.8)
+          ..style = PaintingStyle.fill,
+      );
+
+      // Border
+      canvas.drawRect(
+        Rect.fromLTWH(barX, barY, barWidth, barHeight),
+        Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2,
+      );
+
+      // Text with enemy count
+      final textPainter = TextPainter(
+        text: TextSpan(
+          // Show remaining to kill over total required
+          text: '$enemiesRemainingInCurrentWave/$enemiesToSpawnInCurrentWave',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      textPainter.layout();
+      textPainter.paint(
+        canvas,
+        Offset(
+          barX + (barWidth / 2) - (textPainter.width / 2),
+          barY + (barHeight / 2) - (textPainter.height / 2),
+        ),
+      );
+    }
+  }
 
   void startNextWave() {
     currentWaveNumber++;
-    if (currentWaveNumber > waves.length) return;
+    if (currentWaveNumber > waves.length) {
+      _startBossPhase();
+      return;
+    }
 
     final wave = waves[currentWaveNumber - 1];
     enemiesToSpawnInCurrentWave = wave.numEnemies;
@@ -283,6 +510,21 @@ class MyGame extends FlameGame with HasCollisionDetection {
     _currentSpawnInterval = wave.spawnInterval;
     _spawnTimer = 0.0;
     waveText.text = 'Wave: $currentWaveNumber/${waves.length}';
+  }
+
+  void _startBossPhase() {
+    isBossPhase = true;
+    waveText.text = 'BOSS PHASE';
+    gameStatusText.text = 'Defeat the Boss!';
+
+    final bossHealth = baseBossHealth * (1 + (baseHealthLevel * 0.25));
+    currentBoss = Boss(
+      sprite: bossSprite,
+      position: Vector2(size.x - 300, size.y / 2 - 100),
+      size: Vector2(200, 200),
+      health: bossHealth,
+    );
+    add(currentBoss!);
   }
 
   void spawnEnemy() {
@@ -306,17 +548,20 @@ class MyGame extends FlameGame with HasCollisionDetection {
     }
   }
 
-  void addGold(double amount) {
+  void addGold(double amount, {bool fromKill = false}) {
     currentGold += amount;
     goldText.text = 'Gold: ${currentGold.toInt()}';
-    if (!isGameOver && !gameWon) {
-      enemiesRemainingInCurrentWave--;
+    // Only decrement remaining enemies when this gold comes from a kill during normal waves
+    if (fromKill && !isGameOver && !gameWon && !isBossPhase) {
+      if (enemiesRemainingInCurrentWave > 0) {
+        enemiesRemainingInCurrentWave--;
+      }
     }
   }
 
   void _upgradeAllies() {
-    // Cap allies level to 6
-    if (alliesLevel >= 6) return;
+    // Cap allies level to 4
+    if (alliesLevel >= 4) return;
     alliesLevel++;
     if (totalAllies < maxAllies) {
       totalAllies++;
@@ -384,11 +629,11 @@ class MyGame extends FlameGame with HasCollisionDetection {
     // Rows: 0 = bottom, 1 = middle, 2 = top.
     final leftColumnX = playerBase.position.x + playerBase.size.x + 50.0;
     final spacingX = 120.0; // increase horizontal spacing between columns
-    final rowSpacing = 100.0; // increase vertical spacing between rows
+    final rowSpacing = 45.0; // reduce vertical spacing between rows
     final baseY =
         playerBase.position.y +
         playerBase.size.y +
-        50.0; // bottom row Y - lowered
+        10.0; // lower position closer to buttons
     final index = totalAllies - 1; // 0-based index of this newly added ally
 
     // Define symmetric positions based on the total number of allies.

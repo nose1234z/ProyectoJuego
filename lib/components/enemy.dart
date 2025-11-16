@@ -81,8 +81,8 @@ class Enemy extends PositionComponent
     health -= amount;
     if (health <= 0) {
       health = 0;
-      // Award gold to the player
-      game.addGold(goldValue); // Assuming MyGame has an addGold method
+      // Award gold to the player and count kill towards wave progress
+      game.addGold(goldValue, fromKill: true);
       removeFromParent(); // Remove enemy when health is zero
     }
   }
@@ -96,6 +96,8 @@ class Enemy extends PositionComponent
     if (other is Base) {
       // Enemy reached the base, deal damage and remove itself
       other.takeDamage(damage); // Instant damage for now
+      // Contar como kill para la wave
+      game.addGold(goldValue, fromKill: true);
       removeFromParent();
     } else if (other is PlayerUnit) {
       // Enemy collided with a player unit, stop and attack

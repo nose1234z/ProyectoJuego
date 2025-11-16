@@ -22,5 +22,8 @@ flutter:
     - assets/images/enemies/gusano.png
     - assets/images/enemies/malware.png
     - assets/images/escenario/mapa1.png
-    - assets/images/base_placeholder.png
-    - assets/images/unit_placeholder.png
+    - assets/images/escenario/inicio.png
+    - assets/images/escenario/nivel.jpeg
+    - assets/images/base/torre.png
+    - assets/images/base/AI.png
+    - assets/images/boss/ADWARE.png

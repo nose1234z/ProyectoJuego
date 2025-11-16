@@ -1,8 +1,9 @@
 import 'package:flame/components.dart';
+import 'package:flame/collisions.dart';
 import 'package:flutter/material.dart';
 import 'package:iadenfender/components/health_bar.dart'; // Import HealthBar
 
-class Base extends PositionComponent {
+class Base extends PositionComponent with CollisionCallbacks {
   double health;
   final double maxHealth;
   late HealthBar healthBar;
@@ -19,6 +20,8 @@ class Base extends PositionComponent {
     add(
       SpriteComponent(sprite: sprite, size: size),
     ); // Add SpriteComponent as child
+    // Add a hitbox so enemies can collide with the base
+    add(RectangleHitbox());
     healthBar = HealthBar(
       currentHealth: health,
       maxHealth: maxHealth,
