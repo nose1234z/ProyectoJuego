@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
@@ -10,6 +11,9 @@ import 'package:iadenfender/components/upgrade_button.dart';
 import 'package:iadenfender/components/gold_generator.dart';
 import 'package:iadenfender/components/barricade.dart';
 import 'package:iadenfender/components/boss.dart';
+import 'package:iadenfender/services/data_manager.dart';
+import 'package:iadenfender/services/payment_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class Wave {
   final int numEnemies;
@@ -17,191 +21,722 @@ class Wave {
   Wave({required this.numEnemies, required this.spawnInterval});
 }
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  Flame.device.fullScreen();
-  Flame.device.setLandscape();
-  runApp(MainMenuApp());
+  await Flame.device.fullScreen();
+  await Flame.device.setLandscape();
+
+  await Supabase.initialize(
+    url: 'https://xsfpmymssipfvjeaufqy.supabase.co',
+    anonKey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzZnBteW1zc2lwZnZqZWF1ZnF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIyNzMwNDAsImV4cCI6MjA3Nzg0OTA0MH0._LtCi7QfQGFYSlchua4-rUFCNi7BbLYkzbdhtMvzBLw',
+  );
+
+  runApp(const MyApp());
+}
+
+final supabase = Supabase.instance.client;
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'IA Defender',
+      theme: ThemeData.dark(),
+      debugShowCheckedModeBanner: false,
+      home: AuthHandler(),
+    );
+  }
+}
+
+class AuthHandler extends StatelessWidget {
+  const AuthHandler({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<AuthState>(
+      stream: supabase.auth.onAuthStateChange,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SplashScreen();
+        }
+        final session = snapshot.data?.session;
+        if (session != null) {
+          return MainMenuApp();
+        }
+        return const AuthScreen();
+      },
+    );
+  }
+}
+
+class SplashScreen extends StatelessWidget {
+  const SplashScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+  }
+}
+
+class AuthScreen extends StatefulWidget {
+  const AuthScreen({super.key});
+
+  @override
+  AuthScreenState createState() => AuthScreenState();
+}
+
+class AuthScreenState extends State<AuthScreen> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _usernameController = TextEditingController(); // Nickname
+  bool _isLoading = false;
+  bool _isLogin = true; // To toggle between Login and Sign Up
+
+  Future<void> _signIn() async {
+    setState(() => _isLoading = true);
+    try {
+      await supabase.auth.signInWithPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _signUp() async {
+    setState(() => _isLoading = true);
+    try {
+      // 1. Sign up the user with metadata including username
+      final response = await supabase.auth.signUp(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+        data: {'username': _usernameController.text.trim()},
+        emailRedirectTo: null, // Asegura que use la configuración por defecto
+      );
+
+      // The profile will be created automatically by a database trigger
+
+      if (!mounted) return;
+
+      // Verificar si necesita confirmación de email
+      if (response.user != null &&
+          response.user!.identities != null &&
+          response.user!.identities!.isEmpty) {
+        // Usuario ya existe
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Este email ya está registrado. Intenta iniciar sesión.',
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      } else {
+        // Registro exitoso
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('¡Registro exitoso! Ya puedes iniciar sesión.'),
+            duration: Duration(seconds: 3),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Cambiar a la pantalla de login después del registro
+        setState(() {
+          _isLogin = true;
+        });
+      }
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message), backgroundColor: Colors.red),
+      );
+    } on Exception catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(_isLogin ? 'Iniciar Sesión' : 'Registrarse')),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextField(
+                controller: _emailController,
+                decoration: const InputDecoration(labelText: 'Email'),
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _passwordController,
+                decoration: const InputDecoration(labelText: 'Contraseña'),
+                obscureText: true,
+              ),
+              if (!_isLogin) ...[
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _usernameController,
+                  decoration: const InputDecoration(labelText: 'Nickname'),
+                ),
+              ],
+              const SizedBox(height: 24),
+              if (_isLoading)
+                const CircularProgressIndicator()
+              else
+                ElevatedButton(
+                  onPressed: _isLogin ? _signIn : _signUp,
+                  child: Text(_isLogin ? 'Iniciar Sesión' : 'Registrarse'),
+                ),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _isLogin = !_isLogin;
+                  });
+                },
+                child: Text(
+                  _isLogin
+                      ? '¿No tienes cuenta? Regístrate'
+                      : '¿Ya tienes cuenta? Inicia Sesión',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class MainMenuApp extends StatefulWidget {
   const MainMenuApp({super.key});
+
   @override
   State<MainMenuApp> createState() => _MainMenuAppState();
 }
 
-enum AppScreen { inicio, seleccion, juego }
+enum AppScreen { inicio, seleccion, tienda, juego }
 
 class _MainMenuAppState extends State<MainMenuApp> {
   AppScreen screen = AppScreen.inicio;
   int selectedLevel = 1;
+  late DataManager _dataManager;
+  late Future<void> _dataManagerLoadingFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _dataManager = DataManager();
+    _dataManagerLoadingFuture = _dataManager.load();
+  }
+
+  Future<void> _reloadData() async {
+    setState(() {
+      _dataManagerLoadingFuture = _dataManager.load();
+    });
+  }
+
+  Widget _buildLevelButton(int level) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 50),
+          textStyle: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+        onPressed: () => setState(() {
+          selectedLevel = level;
+          screen = AppScreen.juego;
+        }),
+        child: Text('Nivel $level'),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    switch (screen) {
-      case AppScreen.inicio:
-        return MaterialApp(
-          debugShowCheckedModeBanner: false,
-          home: Scaffold(
-            body: Stack(
-              fit: StackFit.expand,
-              children: [
-                Image.asset(
-                  'assets/images/escenario/inicio.png',
-                  fit: BoxFit.cover,
-                ),
-                Center(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 40,
-                        vertical: 20,
-                      ),
-                      textStyle: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                      ),
+    return FutureBuilder(
+      future: _dataManagerLoadingFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SplashScreen();
+        }
+        if (snapshot.hasError) {
+          return Scaffold(
+            body: Center(
+              child: Text('Error al cargar datos: ${snapshot.error}'),
+            ),
+          );
+        }
+
+        // Data is loaded, build the UI based on the current screen
+        switch (screen) {
+          case AppScreen.inicio:
+            return _buildInicioScreen();
+          case AppScreen.seleccion:
+            return _buildSeleccionScreen();
+          case AppScreen.tienda:
+            return _buildTiendaScreen();
+          case AppScreen.juego:
+            return _buildJuegoScreen();
+        }
+      },
+    );
+  }
+
+  Widget _buildInicioScreen() {
+    return Scaffold(
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset('assets/images/escenario/inicio.png', fit: BoxFit.cover),
+          // Contador de gemas en la parte superior
+          Positioned(
+            top: 40,
+            right: 20,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.7),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.amber, width: 2),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.diamond, color: Colors.amber, size: 24),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${_dataManager.gems}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
                     ),
-                    onPressed: () =>
-                        setState(() => screen = AppScreen.seleccion),
-                    child: const Text('JUGAR'),
                   ),
+                ],
+              ),
+            ),
+          ),
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 40,
+                      vertical: 20,
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  onPressed: () => setState(() => screen = AppScreen.seleccion),
+                  child: const Text('JUGAR'),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 30,
+                      vertical: 15,
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  onPressed: () => setState(() => screen = AppScreen.tienda),
+                  child: const Text('Tienda'),
+                ),
+                const SizedBox(height: 40),
+                ElevatedButton(
+                  onPressed: () async {
+                    await supabase.auth.signOut();
+                  },
+                  child: const Text('Cerrar Sesión'),
                 ),
               ],
             ),
           ),
-        );
-      case AppScreen.seleccion:
-        return MaterialApp(
-          debugShowCheckedModeBanner: false,
-          home: Scaffold(
-            body: Stack(
-              fit: StackFit.expand,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSeleccionScreen() {
+    return Scaffold(
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset('assets/images/escenario/nivel.jpeg', fit: BoxFit.cover),
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Image.asset(
-                  'assets/images/escenario/nivel.jpeg',
-                  fit: BoxFit.cover,
+                const Text(
+                  'Selecciona un nivel',
+                  style: TextStyle(
+                    fontSize: 32,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    shadows: [Shadow(color: Colors.black, blurRadius: 4)],
+                  ),
                 ),
-                Center(
-                  child: Column(
+                const SizedBox(height: 40),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text(
-                        'Selecciona un nivel',
-                        style: TextStyle(
-                          fontSize: 32,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          shadows: [Shadow(color: Colors.black, blurRadius: 4)],
-                        ),
-                      ),
-                      const SizedBox(height: 40),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 40,
-                            vertical: 20,
-                          ),
-                          textStyle: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        onPressed: () => setState(() {
-                          selectedLevel = 1;
-                          screen = AppScreen.juego;
-                        }),
-                        child: const Text('Nivel 1'),
-                      ),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 40,
-                            vertical: 20,
-                          ),
-                          textStyle: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        onPressed: () => setState(() {
-                          selectedLevel = 2;
-                          screen = AppScreen.juego;
-                        }),
-                        child: const Text('Nivel 2'),
-                      ),
-                      const SizedBox(height: 40),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 10,
-                          ),
-                        ),
-                        onPressed: () =>
-                            setState(() => screen = AppScreen.inicio),
-                        child: const Text('Volver'),
-                      ),
+                      _buildLevelButton(1),
+                      _buildLevelButton(2),
+                      _buildLevelButton(3),
+                      _buildLevelButton(4),
                     ],
                   ),
                 ),
+                const SizedBox(height: 40),
+                ElevatedButton(
+                  onPressed: () => setState(() => screen = AppScreen.inicio),
+                  child: const Text('Volver'),
+                ),
               ],
             ),
           ),
-        );
-      case AppScreen.juego:
-        final game = MyGame(level: selectedLevel);
-        return MaterialApp(
-          debugShowCheckedModeBanner: false,
-          home: Scaffold(
-            body: GestureDetector(
-              child: GameWidget(game: game),
-              onTapDown: (details) => game.handleTap(
-                Vector2(details.localPosition.dx, details.localPosition.dy),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTiendaScreen() {
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Tienda'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => setState(() => screen = AppScreen.inicio),
+          ),
+          actions: [
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 20.0),
+                child: Text(
+                  'Gemas: ${_dataManager.gems}',
+                  style: const TextStyle(fontSize: 20),
+                ),
               ),
             ),
-            floatingActionButton: FloatingActionButton(
-              tooltip: 'Volver al menú',
-              onPressed: () => setState(() => screen = AppScreen.inicio),
-              child: const Icon(Icons.home),
-            ),
+          ],
+          bottom: const TabBar(
+            tabs: [
+              Tab(icon: Icon(Icons.upgrade), text: 'Mejoras'),
+              Tab(icon: Icon(Icons.brush), text: 'Skins'),
+              Tab(icon: Icon(Icons.diamond), text: 'Comprar Gemas'),
+            ],
           ),
-        );
-    }
+        ),
+        body: TabBarView(
+          children: [
+            // Upgrades Tab
+            ListView.builder(
+              itemCount: _dataManager.shopItems.length,
+              itemBuilder: (context, index) {
+                final item = _dataManager.shopItems[index];
+                final level = _dataManager.getUpgradeLevel(item['id']);
+                final cost = _dataManager.getUpgradeCost(item['id']);
+                final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+                return Card(
+                  margin: const EdgeInsets.all(8.0),
+                  child: ListTile(
+                    leading: Text(
+                      item['icon'],
+                      style: const TextStyle(fontSize: 30),
+                    ),
+                    title: Text('${item['name']} (Nivel $level)'),
+                    subtitle: Text(item['description']),
+                    trailing: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _dataManager.gems >= cost
+                            ? Colors.green
+                            : Colors.grey,
+                      ),
+                      onPressed: () async {
+                        if (_dataManager.gems >= cost) {
+                          try {
+                            await _dataManager.purchaseUpgrade(item['id']);
+                            // Reload data to show new gem count and level
+                            await _reloadData();
+                          } catch (e) {
+                            if (!mounted) return;
+                            scaffoldMessenger.showSnackBar(
+                              SnackBar(
+                                content: Text('Error: ${e.toString()}'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      child: Text('$cost Gemas'),
+                    ),
+                  ),
+                );
+              },
+            ),
+            // Skins Tab (Placeholder)
+            ListView(
+              children: [
+                Card(
+                  margin: const EdgeInsets.all(8.0),
+                  child: ListTile(
+                    leading: const Icon(Icons.shield, size: 40),
+                    title: const Text('Skin de Torre "Castillo"'),
+                    subtitle: const Text('Cambia la apariencia de tu torre.'),
+                    trailing: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey,
+                      ),
+                      onPressed: null,
+                      child: const Text('Próximamente'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            // Comprar Gemas Tab
+            _buildComprarGemasTab(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildComprarGemasTab() {
+    final packages = PaymentService.gemPackages;
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.purple.shade900, Colors.black],
+        ),
+      ),
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16.0),
+        itemCount: packages.length,
+        itemBuilder: (context, index) {
+          final package = packages[index];
+          return Card(
+            elevation: 8,
+            margin: const EdgeInsets.symmetric(vertical: 12.0),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.amber.shade700, Colors.amber.shade300],
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.diamond,
+                          color: Colors.white,
+                          size: 40,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${package['gems']} Gemas',
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              if (package['bonus'] != null &&
+                                  package['bonus'] > 0)
+                                Text(
+                                  '+${package['bonus']} gemas gratis',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.white70,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green.shade700,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () async {
+                          try {
+                            final success = await PaymentService.processPayment(
+                              packageId: package['id'],
+                              title: package['name'],
+                              gems: package['gems'] + (package['bonus'] ?? 0),
+                              price: package['price'],
+                            );
+
+                            if (!mounted) return;
+                            if (success) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Abriendo Mercado Pago en el navegador. Completa el pago y regresa a la app.',
+                                  ),
+                                  backgroundColor: Colors.blue,
+                                  duration: Duration(seconds: 5),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error: ${e.toString()}'),
+                                backgroundColor: Colors.red,
+                                duration: const Duration(seconds: 5),
+                              ),
+                            );
+                          }
+                        },
+                        child: Text(
+                          '\$${package['price']} MXN',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildJuegoScreen() {
+    final game = MyGame(
+      level: selectedLevel,
+      dataManager: _dataManager, // Pass the loaded DataManager
+      onGameWon: (int gemsAwarded) async {
+        await _dataManager.addGems(gemsAwarded);
+        setState(() {
+          _reloadData(); // Reload data to show new gem count
+          screen = AppScreen.seleccion;
+        });
+      },
+      onGameOver: () {
+        setState(() {
+          screen = AppScreen.seleccion;
+        });
+      },
+    );
+    return Scaffold(
+      body: GestureDetector(
+        child: GameWidget(game: game),
+        onTapDown: (details) => game.handleTap(
+          Vector2(details.localPosition.dx, details.localPosition.dy),
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        tooltip: 'Volver al menú',
+        onPressed: () => setState(() => screen = AppScreen.inicio),
+        child: const Icon(Icons.home),
+      ),
+    );
   }
 }
 
 class MyGame extends FlameGame with HasCollisionDetection {
   final int level;
-  MyGame({this.level = 1});
+  final DataManager dataManager;
+  final Function(int) onGameWon;
+  final VoidCallback onGameOver;
+
+  MyGame({
+    required this.level,
+    required this.dataManager,
+    required this.onGameWon,
+    required this.onGameOver,
+  });
+
   late Base playerBase;
-  double currentGold = 40;
+  late double currentGold;
   double goldPerSecond = 0.5;
   GoldGenerator? goldGenerator;
 
-  // Upgrade levels
-  int alliesLevel = 0,
-      damageLevel = 0,
+  int damageLevel = 0,
       attackSpeedLevel = 0,
       healingLevel = 0,
       baseHealthLevel = 0,
       barricadeLevel = 0;
 
-  // Unit stats
   int totalAllies = 0;
   static const int maxAllies = 4;
-  double baseUnitDamage = 10.0,
-      baseUnitAttackSpeed = 1.0,
-      baseHealingAmount = 5.0,
-      baseMaxHealth = 100.0,
-      baseBarricadeHealth = 150.0;
+  late double baseUnitDamage;
+  double baseUnitAttackSpeed = 1.0;
+  double baseHealingAmount = 5.0;
+  late double baseMaxHealth;
+  double baseBarricadeHealth = 150.0;
+
   Barricade? currentBarricade;
   Boss? currentBoss;
   bool isBossPhase = false;
   double baseBossHealth = 500.0;
 
-  // Timers
   double _spawnTimer = 0.0, _currentSpawnInterval = 1.0, _autoHealTimer = 0.0;
   static const _autoHealInterval = 15.0;
 
@@ -219,27 +754,75 @@ class MyGame extends FlameGame with HasCollisionDetection {
   final Random _random = Random();
   late Map<String, UpgradeButton> upgradeButtons;
 
+  void onAllyRemoved() {
+    if (totalAllies > 0) {
+      totalAllies--;
+    }
+  }
+
   @override
   Future<void> onLoad() async {
     await super.onLoad();
+
+    // --- Apply Permanent Upgrades from DataManager ---
+    baseUnitDamage = 10.0 + dataManager.permanentDamageBonus;
+    baseMaxHealth = 100.0 + dataManager.permanentHealthBonus;
+    currentGold = 35.0 + dataManager.permanentGoldBonus;
+
     upgradeButtons = {};
 
-    final bg = await loadSprite('escenario/mapa1.png');
+    String mapPath;
+    switch (level) {
+      case 1:
+        mapPath = 'escenario/mapa1.png';
+        waves = [
+          Wave(numEnemies: 5, spawnInterval: 3.0),
+          Wave(numEnemies: 8, spawnInterval: 2.5),
+          Wave(numEnemies: 10, spawnInterval: 2.0),
+        ];
+        break;
+      case 2:
+        mapPath = 'escenario/mapa2.png';
+        waves = [
+          Wave(numEnemies: 5, spawnInterval: 3.0),
+          Wave(numEnemies: 8, spawnInterval: 2.5),
+          Wave(numEnemies: 10, spawnInterval: 2.0),
+        ];
+        break;
+      case 3:
+        mapPath = 'escenario/mapa3.png';
+        waves = [
+          Wave(numEnemies: 5, spawnInterval: 3.0),
+          Wave(numEnemies: 8, spawnInterval: 2.5),
+          Wave(numEnemies: 10, spawnInterval: 2.0),
+        ];
+        break;
+      case 4:
+        mapPath = 'escenario/mapa4.png';
+        waves = [
+          Wave(numEnemies: 5, spawnInterval: 3.0),
+          Wave(numEnemies: 8, spawnInterval: 2.5),
+          Wave(numEnemies: 10, spawnInterval: 2.0),
+        ];
+        break;
+      default:
+        mapPath = 'escenario/mapa1.png';
+        waves = [Wave(numEnemies: 5, spawnInterval: 3.0)];
+    }
+
+    final bg = await loadSprite(mapPath);
     add(SpriteComponent(sprite: bg, size: size));
 
     enemySprites = await Future.wait([
       loadSprite('enemies/malware.png'),
       loadSprite('enemies/gusano.png'),
     ]);
-
-    // Load boss sprite (assets/images/boss/ADWARE.png)
     bossSprite = await loadSprite('boss/ADWARE.png');
 
     try {
       baseSprite = await loadSprite('base/torre.png');
       playerUnitSprite = await loadSprite('base/AI.png');
     } catch (e) {
-      // Fallback in case assets are missing
       baseSprite = enemySprites[0];
       playerUnitSprite = enemySprites[1];
     }
@@ -254,7 +837,6 @@ class MyGame extends FlameGame with HasCollisionDetection {
     );
     add(playerBase);
 
-    // UI Components
     goldText = TextComponent(
       text: 'Gold: ${currentGold.toInt()}',
       position: Vector2(20, 20),
@@ -313,7 +895,6 @@ class MyGame extends FlameGame with HasCollisionDetection {
     );
     add(goldGenerator!);
 
-    // Setup upgrade buttons - horizontal layout at bottom
     const buttonWidth = 100.0, buttonHeight = 70.0, spacing = 8.0;
     final totalButtonsWidth = (buttonWidth + spacing) * 6 - spacing;
     final startX = (size.x - totalButtonsWidth) / 2;
@@ -322,12 +903,11 @@ class MyGame extends FlameGame with HasCollisionDetection {
     upgradeButtons['allies'] = UpgradeButton(
       upgradeType: 'allies',
       upgradeCost: 30,
-      onUpgrade: _upgradeAllies,
+      onUpgrade: _buyAlly,
       position: Vector2(startX, startY),
       size: Vector2(buttonWidth, buttonHeight),
     );
     add(upgradeButtons['allies']!);
-
     upgradeButtons['barricade'] = UpgradeButton(
       upgradeType: 'barricade',
       upgradeCost: 50,
@@ -336,7 +916,6 @@ class MyGame extends FlameGame with HasCollisionDetection {
       size: Vector2(buttonWidth, buttonHeight),
     );
     add(upgradeButtons['barricade']!);
-
     upgradeButtons['damage'] = UpgradeButton(
       upgradeType: 'damage',
       upgradeCost: 25,
@@ -345,7 +924,6 @@ class MyGame extends FlameGame with HasCollisionDetection {
       size: Vector2(buttonWidth, buttonHeight),
     );
     add(upgradeButtons['damage']!);
-
     upgradeButtons['attackSpeed'] = UpgradeButton(
       upgradeType: 'attackSpeed',
       upgradeCost: 40,
@@ -354,7 +932,6 @@ class MyGame extends FlameGame with HasCollisionDetection {
       size: Vector2(buttonWidth, buttonHeight),
     );
     add(upgradeButtons['attackSpeed']!);
-
     upgradeButtons['healing'] = UpgradeButton(
       upgradeType: 'healing',
       upgradeCost: 50,
@@ -363,7 +940,6 @@ class MyGame extends FlameGame with HasCollisionDetection {
       size: Vector2(buttonWidth, buttonHeight),
     );
     add(upgradeButtons['healing']!);
-
     upgradeButtons['baseHealth'] = UpgradeButton(
       upgradeType: 'baseHealth',
       upgradeCost: 60,
@@ -373,15 +949,6 @@ class MyGame extends FlameGame with HasCollisionDetection {
     );
     add(upgradeButtons['baseHealth']!);
 
-    waves = [
-      Wave(numEnemies: 10, spawnInterval: 5.0),
-      Wave(numEnemies: 12, spawnInterval: 6.0),
-      Wave(numEnemies: 15, spawnInterval: 7.0),
-      Wave(numEnemies: 18, spawnInterval: 8.0),
-      Wave(numEnemies: 20, spawnInterval: 9.0),
-      Wave(numEnemies: 25, spawnInterval: 10.0),
-    ];
-
     startNextWave();
   }
 
@@ -390,10 +957,12 @@ class MyGame extends FlameGame with HasCollisionDetection {
     super.update(dt);
     if (isGameOver || gameWon) return;
 
-    _spawnTimer += dt;
-    if (_spawnTimer >= _currentSpawnInterval) {
-      _spawnTimer = 0.0;
-      spawnEnemy();
+    if (!isBossPhase) {
+      _spawnTimer += dt;
+      if (_spawnTimer >= _currentSpawnInterval) {
+        _spawnTimer = 0.0;
+        spawnEnemy();
+      }
     }
 
     _autoHealTimer += dt;
@@ -414,8 +983,8 @@ class MyGame extends FlameGame with HasCollisionDetection {
         }
       }
     } else {
-      // Boss phase: check if boss is defeated
-      if (currentBoss == null || currentBoss!.health <= 0) {
+      if ((currentBoss == null || currentBoss!.health <= 0) &&
+          children.whereType<Enemy>().isEmpty) {
         _onGameWin();
       }
     }
@@ -432,38 +1001,29 @@ class MyGame extends FlameGame with HasCollisionDetection {
   @override
   void render(Canvas canvas) {
     super.render(canvas);
-
-    // Draw wave progress bar if not in boss phase
     if (!isBossPhase && !isGameOver && !gameWon) {
       const barWidth = 200.0;
       const barHeight = 20.0;
       final barX = (size.x / 2) - (barWidth / 2);
-      final barY = 65.0; // Below the wave text
-
+      final barY = 65.0;
       final killsRequired = enemiesToSpawnInCurrentWave;
       final killsDone = (killsRequired - enemiesRemainingInCurrentWave).clamp(
         0,
         killsRequired,
       );
       final progress = killsRequired > 0 ? killsDone / killsRequired : 0.0;
-
-      // Background bar (dark)
       canvas.drawRect(
         Rect.fromLTWH(barX, barY, barWidth, barHeight),
         Paint()
-          ..color = Colors.grey.withValues(alpha: 0.5)
+          ..color = Colors.grey.withAlpha(128)
           ..style = PaintingStyle.fill,
       );
-
-      // Progress bar (cyan/green)
       canvas.drawRect(
         Rect.fromLTWH(barX, barY, barWidth * progress, barHeight),
         Paint()
-          ..color = Colors.cyan.withValues(alpha: 0.8)
+          ..color = Colors.cyan.withAlpha(204)
           ..style = PaintingStyle.fill,
       );
-
-      // Border
       canvas.drawRect(
         Rect.fromLTWH(barX, barY, barWidth, barHeight),
         Paint()
@@ -471,11 +1031,8 @@ class MyGame extends FlameGame with HasCollisionDetection {
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2,
       );
-
-      // Text with enemy count
       final textPainter = TextPainter(
         text: TextSpan(
-          // Show remaining to kill over total required
           text: '$enemiesRemainingInCurrentWave/$enemiesToSpawnInCurrentWave',
           style: const TextStyle(
             color: Colors.white,
@@ -502,7 +1059,6 @@ class MyGame extends FlameGame with HasCollisionDetection {
       _startBossPhase();
       return;
     }
-
     final wave = waves[currentWaveNumber - 1];
     enemiesToSpawnInCurrentWave = wave.numEnemies;
     enemiesSpawnedInCurrentWave = 0;
@@ -512,11 +1068,27 @@ class MyGame extends FlameGame with HasCollisionDetection {
     waveText.text = 'Wave: $currentWaveNumber/${waves.length}';
   }
 
+  void spawnHordeEnemy() {
+    final enemyHealth = 30.0 + (currentWaveNumber * currentWaveNumber * 8);
+    final enemy = Enemy(
+      sprite: enemySprites[_random.nextInt(enemySprites.length)],
+      position: Vector2(
+        size.x + 25 + _random.nextDouble() * 100,
+        size.y * 0.4 + _random.nextDouble() * 150,
+      ),
+      size: Vector2(50, 50),
+      health: enemyHealth,
+      speed: 30 + _random.nextDouble() * 15,
+      damage: 10,
+      goldValue: (10 + (currentWaveNumber * currentWaveNumber * 2)).toDouble(),
+    );
+    add(enemy);
+  }
+
   void _startBossPhase() {
     isBossPhase = true;
     waveText.text = 'BOSS PHASE';
     gameStatusText.text = 'Defeat the Boss!';
-
     final bossHealth = baseBossHealth * (1 + (baseHealthLevel * 0.25));
     currentBoss = Boss(
       sprite: bossSprite,
@@ -525,6 +1097,10 @@ class MyGame extends FlameGame with HasCollisionDetection {
       health: bossHealth,
     );
     add(currentBoss!);
+    final hordeSize = 10 + (level * 2);
+    for (int i = 0; i < hordeSize; i++) {
+      spawnHordeEnemy();
+    }
   }
 
   void spawnEnemy() {
@@ -551,7 +1127,6 @@ class MyGame extends FlameGame with HasCollisionDetection {
   void addGold(double amount, {bool fromKill = false}) {
     currentGold += amount;
     goldText.text = 'Gold: ${currentGold.toInt()}';
-    // Only decrement remaining enemies when this gold comes from a kill during normal waves
     if (fromKill && !isGameOver && !gameWon && !isBossPhase) {
       if (enemiesRemainingInCurrentWave > 0) {
         enemiesRemainingInCurrentWave--;
@@ -559,16 +1134,11 @@ class MyGame extends FlameGame with HasCollisionDetection {
     }
   }
 
-  void _upgradeAllies() {
-    // Cap allies level to 4
-    if (alliesLevel >= 4) return;
-    alliesLevel++;
-    if (totalAllies < maxAllies) {
-      totalAllies++;
-      goldPerSecond += 0.2;
-      goldGenerator?.setGoldPerSecond(goldPerSecond);
-      _spawnPlayerUnit();
-    }
+  void _buyAlly() {
+    totalAllies++;
+    goldPerSecond += 0.2;
+    goldGenerator?.setGoldPerSecond(goldPerSecond);
+    _spawnPlayerUnit();
   }
 
   void _upgradeBarricade() {
@@ -583,11 +1153,9 @@ class MyGame extends FlameGame with HasCollisionDetection {
   }
 
   void _spawnBarricade(double health) {
-    // Spawn a vertical barricade (wall) between allies and enemies
-    final wallWidth = 10.0; // thin vertical wall - reduced
-    final wallHeight = 300.0; // tall - reduced
-    // Place the wall to the right of the ally formation
-    final wallX = 250.0 + 150.0 + 50.0; // = 450.0
+    final wallWidth = 10.0;
+    final wallHeight = 300.0;
+    final wallX = 450.0;
     final wallY = size.y - 200.0;
     currentBarricade = Barricade(
       sprite: playerUnitSprite,
@@ -621,26 +1189,18 @@ class MyGame extends FlameGame with HasCollisionDetection {
     final newMaxHealth = baseMaxHealth * (1 + baseHealthLevel * 0.25);
     playerBase.health =
         (playerBase.health / playerBase.maxHealth) * newMaxHealth;
-    baseMaxHealth = newMaxHealth;
+    playerBase.maxHealth = newMaxHealth;
   }
 
   void _spawnPlayerUnit() {
-    // Arrange allies in a 2x3 formation relative to the base (2 columns x 3 rows).
-    // Rows: 0 = bottom, 1 = middle, 2 = top.
     final leftColumnX = playerBase.position.x + playerBase.size.x + 50.0;
-    final spacingX = 120.0; // increase horizontal spacing between columns
-    final rowSpacing = 45.0; // reduce vertical spacing between rows
-    final baseY =
-        playerBase.position.y +
-        playerBase.size.y +
-        10.0; // lower position closer to buttons
-    final index = totalAllies - 1; // 0-based index of this newly added ally
-
-    // Define symmetric positions based on the total number of allies.
-    final middleRowY = baseY - rowSpacing; // row 1
-    final topRowY = baseY - rowSpacing * 2; // row 2
+    final spacingX = 120.0;
+    final rowSpacing = 45.0;
+    final baseY = playerBase.position.y + playerBase.size.y + 10.0;
+    final index = totalAllies - 1;
+    final middleRowY = baseY - rowSpacing;
+    final topRowY = baseY - rowSpacing * 2;
     final centerX = leftColumnX + spacingX / 2.0;
-
     List<Vector2> positions;
     switch (totalAllies) {
       case 1:
@@ -660,36 +1220,16 @@ class MyGame extends FlameGame with HasCollisionDetection {
         ];
         break;
       case 4:
-        positions = [
-          Vector2(leftColumnX, topRowY),
-          Vector2(leftColumnX + spacingX, topRowY),
-          Vector2(leftColumnX, middleRowY),
-          Vector2(leftColumnX + spacingX, middleRowY),
-        ];
-        break;
-      case 5:
-        positions = [
-          Vector2(leftColumnX, topRowY),
-          Vector2(leftColumnX + spacingX, topRowY),
-          Vector2(leftColumnX, middleRowY),
-          Vector2(leftColumnX + spacingX, middleRowY),
-          Vector2(centerX, baseY),
-        ];
-        break;
       default:
         positions = [
           Vector2(leftColumnX, topRowY),
           Vector2(leftColumnX + spacingX, topRowY),
           Vector2(leftColumnX, middleRowY),
           Vector2(leftColumnX + spacingX, middleRowY),
-          Vector2(leftColumnX, baseY),
-          Vector2(leftColumnX + spacingX, baseY),
         ];
     }
-
     final pos =
         positions[index < positions.length ? index : positions.length - 1];
-
     add(
       PlayerUnit(
         sprite: playerUnitSprite,
@@ -707,11 +1247,14 @@ class MyGame extends FlameGame with HasCollisionDetection {
     isGameOver = true;
     gameStatusText.text = 'GAME OVER!';
     children.whereType<Enemy>().forEach((e) => e.removeFromParent());
+    onGameOver();
   }
 
   void _onGameWin() {
     gameWon = true;
     gameStatusText.text = 'VICTORY!';
+    final gemsAwarded = 10 + (level * 5);
+    onGameWon(gemsAwarded);
   }
 
   void handleTap(Vector2 pos) {

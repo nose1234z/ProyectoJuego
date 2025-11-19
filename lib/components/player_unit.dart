@@ -99,6 +99,12 @@ class PlayerUnit extends PositionComponent
     healthBar.updateHealth(health);
   }
 
+  @override
+  void onRemove() {
+    super.onRemove();
+    game.onAllyRemoved();
+  }
+
   void takeDamage(double amount) {
     health -= amount;
     if (health <= 0) {

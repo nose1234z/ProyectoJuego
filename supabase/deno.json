@@ -1,0 +1,12 @@
+{
+  "tasks": {
+    "deploy-all": "supabase functions deploy create-mercadopago-preference && supabase functions deploy mercadopago-webhook",
+    "deploy-preference": "supabase functions deploy create-mercadopago-preference",
+    "deploy-webhook": "supabase functions deploy mercadopago-webhook",
+    "logs-webhook": "supabase functions logs mercadopago-webhook --tail"
+  },
+  "compilerOptions": {
+    "lib": ["deno.window"],
+    "strict": true
+  }
+}

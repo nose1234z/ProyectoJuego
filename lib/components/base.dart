@@ -5,7 +5,7 @@ import 'package:iadenfender/components/health_bar.dart'; // Import HealthBar
 
 class Base extends PositionComponent with CollisionCallbacks {
   double health;
-  final double maxHealth;
+  double maxHealth;
   late HealthBar healthBar;
   final VoidCallback? onBaseDestroyed; // Declared as an instance field
 

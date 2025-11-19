@@ -9,7 +9,9 @@ class UpgradeButton extends PositionComponent with HasGameReference<MyGame> {
 
   late TextComponent buttonText;
   late TextComponent costText;
+  late RectangleComponent background;
   double currentCost;
+  bool isDisabled = false;
 
   UpgradeButton({
     required this.upgradeType,
@@ -23,12 +25,12 @@ class UpgradeButton extends PositionComponent with HasGameReference<MyGame> {
   void onMount() {
     super.onMount();
 
-    // Draw button background
-    add(
-      RectangleComponent(size: size, paint: Paint()..color = Colors.blueGrey),
+    background = RectangleComponent(
+      size: size,
+      paint: Paint()..color = Colors.blueGrey,
     );
+    add(background);
 
-    // Button text (upgrade name)
     final upgradeName = _getUpgradeName();
     buttonText = TextComponent(
       text: upgradeName,
@@ -44,7 +46,6 @@ class UpgradeButton extends PositionComponent with HasGameReference<MyGame> {
     );
     add(buttonText);
 
-    // Cost text
     costText = TextComponent(
       text: '${currentCost.toInt()}G',
       position: Vector2(size.x / 2, size.y / 2 + 12),
@@ -59,15 +60,33 @@ class UpgradeButton extends PositionComponent with HasGameReference<MyGame> {
   @override
   void update(double dt) {
     super.update(dt);
-    // Update button display with current level from game
-    final level = _getCurrentLevel();
-    buttonText.text = '${_getUpgradeName()} Lv$level';
+
+    // Special handling for the 'allies' button to act as a "buy" button
+    if (upgradeType == 'allies') {
+      if (game.totalAllies >= MyGame.maxAllies) {
+        if (!isDisabled) {
+          isDisabled = true;
+          background.paint.color = Colors.red.withAlpha(204);
+          buttonText.text = 'Máximo';
+          costText.text = '';
+        }
+      } else {
+        if (isDisabled) {
+          isDisabled = false;
+          background.paint.color = Colors.blueGrey;
+          buttonText.text = _getUpgradeName();
+          costText.text = '${currentCost.toInt()}G';
+        }
+      }
+    } else {
+      // Original level-based upgrade logic for other buttons
+      final level = _getCurrentLevel();
+      buttonText.text = '${_getUpgradeName()} Lv$level';
+    }
   }
 
   int _getCurrentLevel() {
     switch (upgradeType) {
-      case 'allies':
-        return game.alliesLevel;
       case 'damage':
         return game.damageLevel;
       case 'attackSpeed':
@@ -86,7 +105,7 @@ class UpgradeButton extends PositionComponent with HasGameReference<MyGame> {
   String _getUpgradeName() {
     switch (upgradeType) {
       case 'allies':
-        return 'Aliados';
+        return 'Comprar Aliado'; // Changed text
       case 'barricade':
         return 'Barricada';
       case 'damage':
@@ -104,7 +123,9 @@ class UpgradeButton extends PositionComponent with HasGameReference<MyGame> {
 
   void updateCost(double newCost) {
     currentCost = newCost;
-    costText.text = '${newCost.toInt()}G';
+    if (!isDisabled) {
+      costText.text = '${newCost.toInt()}G';
+    }
   }
 
   bool canAfford() {
@@ -120,11 +141,17 @@ class UpgradeButton extends PositionComponent with HasGameReference<MyGame> {
   }
 
   void onClick() {
+    if (isDisabled) return;
+
     if (canAfford()) {
       game.currentGold -= currentCost;
       game.goldText.text = 'Gold: ${game.currentGold.toInt()}';
-      // Increase cost for next upgrade (1.2x multiplier)
-      updateCost(currentCost * 1.2);
+      
+      // For allies, cost doesn't increase. For others, it does.
+      if (upgradeType != 'allies') {
+        updateCost(currentCost * 1.2);
+      }
+      
       onUpgrade();
     }
   }
@@ -132,7 +159,8 @@ class UpgradeButton extends PositionComponent with HasGameReference<MyGame> {
   @override
   void render(Canvas canvas) {
     super.render(canvas);
-    // Draw border if can afford
+    if (isDisabled) return;
+
     if (canAfford()) {
       canvas.drawRect(
         Rect.fromLTWH(0, 0, size.x, size.y),
