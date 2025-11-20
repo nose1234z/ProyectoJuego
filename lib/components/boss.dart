@@ -2,19 +2,21 @@ import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
 import 'package:iadenfender/main.dart';
 import 'package:iadenfender/components/health_bar.dart';
-import 'package:iadenfender/components/enemy.dart';
+import 'package:iadenfender/components/base.dart';
+import 'package:iadenfender/components/barricade.dart';
+import 'package:iadenfender/components/player_unit.dart';
 import 'package:flutter/material.dart';
-import 'dart:math';
 
 class Boss extends PositionComponent
     with HasGameReference<MyGame>, CollisionCallbacks {
   double health;
   final double maxHealth;
   late HealthBar healthBar;
-  double spawnTimer = 0.0;
-  final double spawnInterval = 2.0; // spawn enemy every 2 seconds
-  final Random _random = Random();
-  double speed = 12.0; // Boss movement speed
+  double attackTimer = 0.0;
+  final double attackInterval = 1.5; // Ataca cada 1.5 segundos
+  final double attackDamage = 15.0;
+  double speed = 5.0; // Boss movement speed (reducida para mejor colisión)
+  bool isColliding = false; // Para detener movimiento al colisionar
 
   Boss({
     required Sprite sprite,
@@ -23,7 +25,8 @@ class Boss extends PositionComponent
     required this.health,
   }) : maxHealth = health {
     add(SpriteComponent(sprite: sprite, size: size));
-    add(RectangleHitbox());
+    // Hitbox sólido que cubre todo el sprite del boss
+    add(RectangleHitbox(size: size, position: Vector2.zero()));
     healthBar = HealthBar(
       currentHealth: health,
       maxHealth: maxHealth,
@@ -72,32 +75,48 @@ class Boss extends PositionComponent
     }
     healthBar.updateHealth(health);
 
-    // Move towards the left (towards base)
-    position.x -= speed * dt;
-
-    // Spawn minion enemies periodically
-    spawnTimer += dt;
-    if (spawnTimer >= spawnInterval) {
-      spawnTimer = 0.0;
-      _spawnMinion();
+    // Move towards the left (towards base) solo si no está colisionando
+    if (!isColliding) {
+      position.x -= speed * dt;
     }
+
+    // Actualizar timer de ataque
+    attackTimer += dt;
+
+    // Reset collision flag cada frame (se volverá true en onCollision si hay colisión)
+    isColliding = false;
   }
 
-  void _spawnMinion() {
-    final minionHealth = 20.0 + (game.currentWaveNumber * 2);
-    final enemy = Enemy(
-      sprite: game.enemySprites[_random.nextInt(game.enemySprites.length)],
-      position: Vector2(
-        position.x - 50.0 + _random.nextDouble() * 100,
-        position.y + 100.0,
-      ),
-      size: Vector2(40, 40),
-      health: minionHealth,
-      speed: 25,
-      damage: 5,
-      goldValue: 5.0,
-    );
-    game.add(enemy);
+  @override
+  void onCollision(Set<Vector2> intersectionPoints, PositionComponent other) {
+    super.onCollision(intersectionPoints, other);
+
+    // Colisión con la base
+    if (other is Base) {
+      isColliding = true; // Detener movimiento
+      if (attackTimer >= attackInterval) {
+        other.takeDamage(attackDamage);
+        attackTimer = 0.0;
+      }
+    }
+
+    // Colisión con barricada
+    if (other is Barricade) {
+      isColliding = true; // Detener movimiento
+      if (attackTimer >= attackInterval) {
+        other.takeDamage(attackDamage);
+        attackTimer = 0.0;
+      }
+    }
+
+    // Colisión con aliados
+    if (other is PlayerUnit) {
+      isColliding = true; // Detener movimiento momentáneamente
+      if (attackTimer >= attackInterval) {
+        other.takeDamage(attackDamage);
+        attackTimer = 0.0;
+      }
+    }
   }
 
   void takeDamage(double amount) {

@@ -240,7 +240,7 @@ class MainMenuApp extends StatefulWidget {
 
 enum AppScreen { inicio, seleccion, tienda, personalizacion, juego }
 
-class _MainMenuAppState extends State<MainMenuApp> {
+class _MainMenuAppState extends State<MainMenuApp> with WidgetsBindingObserver {
   AppScreen screen = AppScreen.inicio;
   int selectedLevel = 1;
   late DataManager _dataManager;
@@ -253,12 +253,24 @@ class _MainMenuAppState extends State<MainMenuApp> {
     _dataManagerLoadingFuture = _dataManager.load();
     // Reproducir música del menú
     MusicService().playMenu();
+    // Escuchar cuando la app vuelve a tener foco
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     MusicService().stop();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Cuando la app vuelve a estar activa (después de abrir el navegador)
+    if (state == AppLifecycleState.resumed) {
+      _reloadData();
+    }
   }
 
   Future<void> _reloadData() async {
@@ -1480,11 +1492,8 @@ class MyGame extends FlameGame with HasCollisionDetection {
         break;
       case 4:
         mapPath = 'escenario/mapa4.png';
-        waves = [
-          Wave(numEnemies: 5, spawnInterval: 3.0),
-          Wave(numEnemies: 8, spawnInterval: 2.5),
-          Wave(numEnemies: 10, spawnInterval: 2.0),
-        ];
+        // Nivel 4: Solo boss para pruebas
+        waves = [];
         break;
       default:
         mapPath = 'escenario/mapa1.png';
@@ -1635,7 +1644,16 @@ class MyGame extends FlameGame with HasCollisionDetection {
     );
     add(upgradeButtons['baseHealth']!);
 
-    startNextWave();
+    // Si es nivel 4, iniciar boss inmediatamente
+    if (level == 4) {
+      Future.delayed(const Duration(seconds: 2), () {
+        if (!isGameOver && !gameWon) {
+          _startBossPhase();
+        }
+      });
+    } else {
+      startNextWave();
+    }
   }
 
   @override
@@ -1783,9 +1801,18 @@ class MyGame extends FlameGame with HasCollisionDetection {
       health: bossHealth,
     );
     add(currentBoss!);
-    final hordeSize = 10 + (level * 2);
-    for (int i = 0; i < hordeSize; i++) {
-      spawnHordeEnemy();
+
+    // Solo en nivel 4 NO spawneamos oleada (para probar colisiones)
+    if (level != 4) {
+      // Spawn una oleada de enemigos normales junto con el boss
+      final hordeSize = 8 + (level * 2);
+      for (int i = 0; i < hordeSize; i++) {
+        Future.delayed(Duration(milliseconds: i * 500), () {
+          if (!isGameOver && !gameWon) {
+            spawnHordeEnemy();
+          }
+        });
+      }
     }
   }
 
