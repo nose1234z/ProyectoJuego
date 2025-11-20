@@ -4,6 +4,7 @@ import 'package:iadenfender/main.dart';
 import 'package:iadenfender/components/enemy.dart';
 import 'package:iadenfender/components/boss.dart';
 import 'package:iadenfender/components/health_bar.dart';
+import 'package:iadenfender/components/projectile.dart';
 import 'package:flutter/material.dart';
 
 class PlayerUnit extends PositionComponent
@@ -85,11 +86,8 @@ class PlayerUnit extends PositionComponent
     }
 
     if (target != null && _attackTimer >= (1 / attackSpeed)) {
-      if (target is Enemy) {
-        target.takeDamage(attackDamage);
-      } else if (target is Boss) {
-        target.takeDamage(attackDamage);
-      }
+      // Disparar proyectil hacia el objetivo
+      _shootProjectile(target);
       _attackTimer = 0;
     }
 
@@ -111,5 +109,28 @@ class PlayerUnit extends PositionComponent
       health = 0;
       removeFromParent();
     }
+  }
+
+  Future<void> _shootProjectile(PositionComponent target) async {
+    // Cargar el sprite del proyectil usando la skin equipada
+    final projectileSkin =
+        game.dataManager.getEquippedSkin('projectile') ??
+        'projectiles/projectile1.png';
+    final projectileSprite = await game.loadSprite(projectileSkin);
+
+    // Calcular posición inicial (centro de la unidad)
+    final startPos = position + Vector2(size.x / 2, size.y / 2);
+
+    // Crear y agregar el proyectil
+    final projectile = Projectile(
+      sprite: projectileSprite,
+      startPosition: startPos,
+      targetPosition:
+          target.position + Vector2(target.size.x / 2, target.size.y / 2),
+      damage: attackDamage,
+      target: target,
+    );
+
+    game.add(projectile);
   }
 }

@@ -15,6 +15,7 @@ dependencies:
   http: ^1.2.0
   url_launcher: ^6.3.1
   webview_flutter: ^4.4.2
+  audioplayers: ^6.1.0
 
 dev_dependencies:
   flutter_test:
@@ -35,3 +36,10 @@ flutter:
     - assets/images/escenario/mapa2.png
     - assets/images/escenario/mapa3.png
     - assets/images/escenario/mapa4.png
+    - assets/images/projectiles/projectile1.png
+    - assets/images/projectiles/projectile2.png
+    - assets/music/menu.mp3
+    - assets/music/nivel1.mp3
+    - assets/music/nivel2.mp3
+    - assets/music/nivel3.mp3
+    - assets/music/shop.mp3

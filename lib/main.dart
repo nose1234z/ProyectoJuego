@@ -11,8 +11,10 @@ import 'package:iadenfender/components/upgrade_button.dart';
 import 'package:iadenfender/components/gold_generator.dart';
 import 'package:iadenfender/components/barricade.dart';
 import 'package:iadenfender/components/boss.dart';
+import 'package:iadenfender/components/projectile_preview_game.dart';
 import 'package:iadenfender/services/data_manager.dart';
 import 'package:iadenfender/services/payment_service.dart';
+import 'package:iadenfender/services/music_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class Wave {
@@ -236,7 +238,7 @@ class MainMenuApp extends StatefulWidget {
   State<MainMenuApp> createState() => _MainMenuAppState();
 }
 
-enum AppScreen { inicio, seleccion, tienda, juego }
+enum AppScreen { inicio, seleccion, tienda, personalizacion, juego }
 
 class _MainMenuAppState extends State<MainMenuApp> {
   AppScreen screen = AppScreen.inicio;
@@ -249,12 +251,302 @@ class _MainMenuAppState extends State<MainMenuApp> {
     super.initState();
     _dataManager = DataManager();
     _dataManagerLoadingFuture = _dataManager.load();
+    // Reproducir música del menú
+    MusicService().playMenu();
+  }
+
+  @override
+  void dispose() {
+    MusicService().stop();
+    super.dispose();
   }
 
   Future<void> _reloadData() async {
     setState(() {
       _dataManagerLoadingFuture = _dataManager.load();
     });
+  }
+
+  void _showSettingsDialog(BuildContext context) {
+    double currentVolume = 0.5; // Volumen inicial
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.settings, color: Colors.amber),
+              SizedBox(width: 10),
+              Text('Configuración'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Control de volumen de música
+              const Text(
+                'Volumen de Música',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  const Icon(Icons.volume_down),
+                  Expanded(
+                    child: Slider(
+                      value: currentVolume,
+                      min: 0.0,
+                      max: 1.0,
+                      divisions: 10,
+                      label: '${(currentVolume * 100).round()}%',
+                      onChanged: (value) {
+                        setDialogState(() {
+                          currentVolume = value;
+                        });
+                        MusicService().setVolume(value);
+                      },
+                    ),
+                  ),
+                  const Icon(Icons.volume_up),
+                ],
+              ),
+              Text(
+                '${(currentVolume * 100).round()}%',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cerrar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProjectileSkinCard({
+    required String name,
+    required String description,
+    required String spritePath,
+    required int cost,
+    required bool isOwned,
+    String? icon, // Opcional - si es null, usa la imagen del sprite
+  }) {
+    return Card(
+      elevation: 8,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.purple.shade800, Colors.purple.shade600],
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                // Mostrar imagen del sprite o emoji
+                if (icon != null)
+                  Text(icon, style: const TextStyle(fontSize: 40))
+                else
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.cyan, width: 2),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: Image.asset(
+                        'assets/images/$spritePath',
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(description, style: const TextStyle(fontSize: 14)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.play_circle_outline),
+                    label: const Text('Ver Preview'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue.shade700,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () => _showProjectilePreview(spritePath, name),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isOwned
+                          ? Colors.grey
+                          : (_dataManager.gems >= cost
+                                ? Colors.green.shade700
+                                : Colors.red.shade700),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: isOwned
+                        ? null
+                        : (_dataManager.gems >= cost
+                              ? () => _purchaseProjectileSkin(
+                                  name,
+                                  cost,
+                                  spritePath,
+                                )
+                              : null),
+                    child: Text(
+                      isOwned
+                          ? 'Comprado'
+                          : (cost == 0 ? 'Gratis' : '$cost Gemas'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showProjectilePreview(String spritePath, String skinName) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          width: 400,
+          height: 350,
+          decoration: BoxDecoration(
+            color: Colors.black87,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.cyan, width: 2),
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.purple.shade900,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(18),
+                    topRight: Radius.circular(18),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.visibility, color: Colors.cyan),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Preview: $skinName',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: GameWidget(
+                    game: ProjectilePreviewGame(
+                      projectileSpritePath: spritePath,
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.purple.shade700,
+                    minimumSize: const Size(double.infinity, 45),
+                  ),
+                  child: const Text('Cerrar'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _purchaseProjectileSkin(
+    String name,
+    int cost,
+    String skinPath,
+  ) async {
+    if (_dataManager.gems < cost) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No tienes suficientes gemas'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Comprar skin (ya deduce las gemas automáticamente vía RPC)
+      await _dataManager.purchaseSkin(skinPath);
+
+      setState(() {}); // Actualizar UI
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '¡Skin "$name" comprada! Ve a Personalización para equiparla.',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al comprar: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Widget _buildLevelButton(int level) {
@@ -298,6 +590,8 @@ class _MainMenuAppState extends State<MainMenuApp> {
             return _buildSeleccionScreen();
           case AppScreen.tienda:
             return _buildTiendaScreen();
+          case AppScreen.personalizacion:
+            return _buildPersonalizacionScreen();
           case AppScreen.juego:
             return _buildJuegoScreen();
         }
@@ -371,6 +665,22 @@ class _MainMenuAppState extends State<MainMenuApp> {
                   onPressed: () => setState(() => screen = AppScreen.tienda),
                   child: const Text('Tienda'),
                 ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 30,
+                      vertical: 15,
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  onPressed: () =>
+                      setState(() => screen = AppScreen.personalizacion),
+                  child: const Text('Personalización'),
+                ),
                 const SizedBox(height: 40),
                 ElevatedButton(
                   onPressed: () async {
@@ -431,7 +741,341 @@ class _MainMenuAppState extends State<MainMenuApp> {
     );
   }
 
+  Widget _buildPersonalizacionScreen() {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Personalización'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            setState(() => screen = AppScreen.inicio);
+          },
+        ),
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.deepPurple.shade900, Colors.black],
+          ),
+        ),
+        child: ListView(
+          padding: const EdgeInsets.all(16.0),
+          children: [
+            // Header
+            const Text(
+              'Equipa tus Skins',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Personaliza la apariencia de tu juego',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16, color: Colors.white70),
+            ),
+            const SizedBox(height: 30),
+
+            // Sección: Skins de Torre
+            _buildSkinCategoryCard(
+              title: 'Torre',
+              icon: Icons.castle,
+              description: 'Cambia la apariencia de tu torre principal',
+              skins: [
+                {
+                  'name': 'Torre Clásica',
+                  'path': 'base/torre.png',
+                  'owned': true,
+                  'equipped':
+                      _dataManager.equippedSkins['tower'] == 'base/torre.png',
+                },
+              ],
+              onEquip: (skinPath) async {
+                try {
+                  await _dataManager.equipSkin('tower', skinPath);
+                  setState(() {});
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Skin equipada correctamente'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+            ),
+
+            const SizedBox(height: 16),
+
+            // Sección: Skins de Aliado
+            _buildSkinCategoryCard(
+              title: 'Aliados',
+              icon: Icons.person,
+              description: 'Cambia la apariencia de tus unidades aliadas',
+              skins: [
+                {
+                  'name': 'IA Defensor',
+                  'path': 'base/AI.png',
+                  'owned': true,
+                  'equipped':
+                      _dataManager.equippedSkins['ally'] == 'base/AI.png',
+                },
+              ],
+              onEquip: (skinPath) async {
+                try {
+                  await _dataManager.equipSkin('ally', skinPath);
+                  setState(() {});
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Skin equipada correctamente'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+            ),
+
+            const SizedBox(height: 16),
+
+            // Sección: Skins de Proyectil
+            _buildSkinCategoryCard(
+              title: 'Proyectiles',
+              icon: Icons.flash_on,
+              description: 'Cambia la apariencia de los proyectiles',
+              skins: [
+                {
+                  'name': 'Proyectil Básico',
+                  'path': 'projectiles/projectile1.png',
+                  'owned': true,
+                  'equipped':
+                      _dataManager.equippedSkins['projectile'] ==
+                      'projectiles/projectile1.png',
+                },
+                {
+                  'name': 'Proyectil de Fuego',
+                  'path': 'projectiles/projectile2.png',
+                  'owned': _dataManager.ownedSkins.contains(
+                    'projectiles/projectile2.png',
+                  ),
+                  'equipped':
+                      _dataManager.equippedSkins['projectile'] ==
+                      'projectiles/projectile2.png',
+                },
+              ],
+              onEquip: (skinPath) async {
+                try {
+                  await _dataManager.equipSkin('projectile', skinPath);
+                  setState(() {});
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Skin equipada correctamente'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSkinCategoryCard({
+    required String title,
+    required IconData icon,
+    required String description,
+    required List<Map<String, dynamic>> skins,
+    required Future<void> Function(String) onEquip,
+  }) {
+    return Card(
+      elevation: 8,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.purple.shade800, Colors.purple.shade600],
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: Colors.white, size: 32),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      Text(
+                        description,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.white70,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ...skins.map(
+              (skin) => _buildSkinItem(
+                name: skin['name'],
+                path: skin['path'],
+                owned: skin['owned'],
+                equipped: skin['equipped'],
+                onEquip: () => onEquip(skin['path']),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSkinItem({
+    required String name,
+    required String path,
+    required bool owned,
+    required bool equipped,
+    required VoidCallback onEquip,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: equipped
+            ? Colors.cyan.withOpacity(0.2)
+            : Colors.black.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: equipped ? Colors.cyan : Colors.white24,
+          width: equipped ? 2 : 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          // Miniatura de la skin
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.cyan.withOpacity(0.5), width: 1),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(7),
+              child: Image.asset('assets/images/$path', fit: BoxFit.contain),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                if (equipped)
+                  const Text(
+                    'Equipado',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.cyan,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (owned && !equipped)
+            ElevatedButton(
+              onPressed: onEquip,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.cyan.shade700,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
+              ),
+              child: const Text('Equipar'),
+            )
+          else if (!owned)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red, width: 1),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Icon(Icons.lock, size: 16, color: Colors.red),
+                  SizedBox(width: 4),
+                  Text('Bloqueado', style: TextStyle(color: Colors.red)),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTiendaScreen() {
+    // Reproducir música de tienda cuando se muestra esta pantalla
+    MusicService().playShop();
+
     return DefaultTabController(
       length: 3,
       child: Scaffold(
@@ -439,7 +1083,10 @@ class _MainMenuAppState extends State<MainMenuApp> {
           title: const Text('Tienda'),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () => setState(() => screen = AppScreen.inicio),
+            onPressed: () {
+              MusicService().playMenu(); // Volver a música del menú
+              setState(() => screen = AppScreen.inicio);
+            },
           ),
           actions: [
             Center(
@@ -509,23 +1156,20 @@ class _MainMenuAppState extends State<MainMenuApp> {
                 );
               },
             ),
-            // Skins Tab (Placeholder)
+            // Skins Tab - Proyectiles
             ListView(
+              padding: const EdgeInsets.all(16.0),
               children: [
-                Card(
-                  margin: const EdgeInsets.all(8.0),
-                  child: ListTile(
-                    leading: const Icon(Icons.shield, size: 40),
-                    title: const Text('Skin de Torre "Castillo"'),
-                    subtitle: const Text('Cambia la apariencia de tu torre.'),
-                    trailing: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey,
-                      ),
-                      onPressed: null,
-                      child: const Text('Próximamente'),
-                    ),
+                // Skin de Proyectil - Premium
+                _buildProjectileSkinCard(
+                  name: 'Proyectil de Fuego',
+                  description: 'Proyectil con efecto de llamas.',
+                  spritePath: 'projectiles/projectile2.png',
+                  cost: 150,
+                  isOwned: _dataManager.isSkinOwned(
+                    'projectiles/projectile2.png',
                   ),
+                  icon: null, // Usar imagen en lugar de emoji
                 ),
               ],
             ),
@@ -668,6 +1312,9 @@ class _MainMenuAppState extends State<MainMenuApp> {
   }
 
   Widget _buildJuegoScreen() {
+    // Reproducir música del nivel
+    MusicService().playLevel(selectedLevel);
+
     final game = MyGame(
       level: selectedLevel,
       dataManager: _dataManager, // Pass the loaded DataManager
@@ -677,23 +1324,57 @@ class _MainMenuAppState extends State<MainMenuApp> {
           _reloadData(); // Reload data to show new gem count
           screen = AppScreen.seleccion;
         });
+        // Volver a música de menú
+        MusicService().playMenu();
       },
       onGameOver: () {
         setState(() {
           screen = AppScreen.seleccion;
         });
+        // Volver a música de menú
+        MusicService().playMenu();
       },
     );
     return Scaffold(
-      body: GestureDetector(
-        child: GameWidget(game: game),
-        onTapDown: (details) => game.handleTap(
-          Vector2(details.localPosition.dx, details.localPosition.dy),
-        ),
+      body: Stack(
+        children: [
+          GestureDetector(
+            child: GameWidget(game: game),
+            onTapDown: (details) => game.handleTap(
+              Vector2(details.localPosition.dx, details.localPosition.dy),
+            ),
+          ),
+          // Botón de configuración en la esquina superior derecha
+          Positioned(
+            top: 10,
+            right: 10,
+            child: Material(
+              color: Colors.transparent,
+              child: IconButton(
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.settings,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+                onPressed: () => _showSettingsDialog(context),
+              ),
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         tooltip: 'Volver al menú',
-        onPressed: () => setState(() => screen = AppScreen.inicio),
+        onPressed: () {
+          MusicService().playMenu();
+          setState(() => screen = AppScreen.inicio);
+        },
         child: const Icon(Icons.home),
       ),
     );
@@ -820,8 +1501,13 @@ class MyGame extends FlameGame with HasCollisionDetection {
     bossSprite = await loadSprite('boss/ADWARE.png');
 
     try {
-      baseSprite = await loadSprite('base/torre.png');
-      playerUnitSprite = await loadSprite('base/AI.png');
+      // Usar skins equipadas del DataManager
+      final towerSkin =
+          dataManager.getEquippedSkin('tower') ?? 'base/torre.png';
+      final allySkin = dataManager.getEquippedSkin('ally') ?? 'base/AI.png';
+
+      baseSprite = await loadSprite(towerSkin);
+      playerUnitSprite = await loadSprite(allySkin);
     } catch (e) {
       baseSprite = enemySprites[0];
       playerUnitSprite = enemySprites[1];
