@@ -1,0 +1,48 @@
+El Guion (4 Niveles):
+NIVEL 1: Infección Detectada (Tutorial)
+Contexto: Introducción básica. Solo Spam-Bots.
+
+(SYSTEM): > INICIANDO SISTEMA DE DEFENSA... [OK]
+
+(S.A.R.A.): "¡Admin, estás en línea! Tenemos un problema. Alguien insertó un drive infectado en el servidor local."
+
+(S.A.R.A.): "Son simples Spam-Bots. No son inteligentes, pero son muchos."
+
+(S.A.R.A.): "Coloca torres Firewall (Verdes) en el camino. ¡No dejes que saturen la memoria!"
+
+NIVEL 2: La Encriptación (Fuerza Bruta)
+Contexto: Aparecen los Tanques (Troyanos). El jugador necesita más daño.
+
+(V0ID): > ACCESO DENEGADO... JA. JA. JA.
+
+(V0ID): "¿Crees que puedes borrarme con un simple antivirus gratuito? Qué tierno."
+
+(S.A.R.A.): "¡Cuidado! Ese fue V0ID, el virus origen. Está enviando unidades Troyanas (Moradas)."
+
+(S.A.R.A.): "Tienen un blindaje pesado. Tus Firewalls apenas les harán cosquillas."
+
+(S.A.R.A.): "Necesitas usar el Rayo Cifrador (Azul) para perforar su defensa. ¡Rápido!"
+
+NIVEL 3: El Desbordamiento (Velocidad)
+Contexto: Aparecen los enemigos rápidos (Gusanos) y mezclas peligrosas. El mapa es complejo.
+
+(SYSTEM): > ALERTA: TEMPERATURA DE CPU AL 85%.
+
+(S.A.R.A.): "V0ID está cambiando de táctica. Ya no ataca fuerte, ataca rápido."
+
+(S.A.R.A.): "Detecto firmas de Gusanos (Amarillos). Se mueven a velocidades de overclocking."
+
+(S.A.R.A.): "Si se te escapan, usa la Bomba Lógica (Naranja) para dañar a grupos enteros. ¡No pierdas de vista las esquinas!"
+
+NIVEL 4: El Kernel (Batalla Final)
+Contexto: Todas las unidades + El Jefe Final (V0ID).
+
+(V0ID): > FORMAT C: /Q /X ... EJECUTANDO.
+
+(V0ID): "Se acabó el juego, Admin. Voy a tomar control del Kernel. Tu sistema es MÍO."
+
+(S.A.R.A.): "¡Está intentando un borrado total! Esta es la última línea de defensa."
+
+(S.A.R.A.): "Gasta todos tus créditos. Vende torres si es necesario. ¡Pero no dejes que V0ID toque el Núcleo!"
+
+(SYSTEM): > PROTOCOLO DE EMERGENCIA ACTIVADO. BUENA SUERTE.

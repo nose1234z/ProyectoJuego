@@ -16,6 +16,8 @@ dependencies:
   url_launcher: ^6.3.1
   webview_flutter: ^4.4.2
   audioplayers: ^6.1.0
+  animated_text_kit: ^4.3.0
+  google_fonts: ^6.3.2
 
 dev_dependencies:
   flutter_test:
@@ -32,6 +34,7 @@ flutter:
     - assets/images/escenario/nivel.jpeg
     - assets/images/base/torre.png
     - assets/images/base/AI.png
+    - assets/images/boss/VOID.png
     - assets/images/boss/ADWARE.png
     - assets/images/escenario/mapa2.png
     - assets/images/escenario/mapa3.png

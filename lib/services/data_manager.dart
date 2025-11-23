@@ -19,6 +19,7 @@ class DataManager {
     'base/AI.png',
     'projectiles/projectile1.png',
   }; // Skins que el usuario posee (las básicas + compradas)
+  Set<int> readStoryLevels = {}; // IDs de las historias que el usuario ya leyó
 
   Map<String, String> equippedSkins = {
     'tower': 'base/torre.png',
@@ -65,13 +66,19 @@ class DataManager {
     final profileResponse = await supabase
         .from('profiles')
         .select(
-          'gems, equipped_tower_skin_id, equipped_ally_skin_id, equipped_projectile_skin_id',
+          'gems, equipped_tower_skin_id, equipped_ally_skin_id, equipped_projectile_skin_id, read_story_levels',
         )
         .eq('id', userId)
         .maybeSingle();
 
     if (profileResponse != null) {
       gems = profileResponse['gems'] as int;
+
+      // Cargar niveles de historia leídos
+      final readLevelsData = profileResponse['read_story_levels'] as List<dynamic>?;
+      if (readLevelsData != null) {
+        readStoryLevels = readLevelsData.map((e) => e as int).toSet();
+      }
 
       // Cargar skins equipadas desde la base de datos
       await _loadEquippedSkins(profileResponse);
@@ -288,5 +295,15 @@ class DataManager {
         .order('gem_cost');
 
     return List<Map<String, dynamic>>.from(response);
+  }
+
+  /// --- Story Management ---
+  Future<void> markStoryAsRead(int levelId) async {
+    if (readStoryLevels.contains(levelId)) return;
+
+    readStoryLevels.add(levelId);
+    await supabase.from('profiles').update({
+      'read_story_levels': readStoryLevels.toList(),
+    }).eq('id', supabase.auth.currentUser!.id);
   }
 }

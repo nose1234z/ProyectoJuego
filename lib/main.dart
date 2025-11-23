@@ -17,6 +17,9 @@ import 'package:iadenfender/services/payment_service.dart';
 import 'package:iadenfender/services/music_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:iadenfender/data/story_data.dart';
+import 'package:iadenfender/widgets/terminal_overlay.dart';
+
 class Wave {
   final int numEnemies;
   final double spawnInterval;
@@ -240,11 +243,13 @@ class MainMenuApp extends StatefulWidget {
 
 enum AppScreen { inicio, seleccion, tienda, personalizacion, juego }
 
+
 class _MainMenuAppState extends State<MainMenuApp> with WidgetsBindingObserver {
   AppScreen screen = AppScreen.inicio;
   int selectedLevel = 1;
   late DataManager _dataManager;
   late Future<void> _dataManagerLoadingFuture;
+  MyGame? _game;
 
   @override
   void initState() {
@@ -1327,65 +1332,94 @@ class _MainMenuAppState extends State<MainMenuApp> with WidgetsBindingObserver {
     // Reproducir música del nivel
     MusicService().playLevel(selectedLevel);
 
-    final game = MyGame(
+    // Crear la instancia del juego
+    _game = MyGame(
       level: selectedLevel,
-      dataManager: _dataManager, // Pass the loaded DataManager
+      dataManager: _dataManager,
       onGameWon: (int gemsAwarded) async {
         await _dataManager.addGems(gemsAwarded);
         setState(() {
-          _reloadData(); // Reload data to show new gem count
+          _game = null; // Limpiar instancia del juego
+          _reloadData();
           screen = AppScreen.seleccion;
         });
-        // Volver a música de menú
         MusicService().playMenu();
       },
       onGameOver: () {
         setState(() {
+          _game = null; // Limpiar instancia del juego
           screen = AppScreen.seleccion;
         });
-        // Volver a música de menú
         MusicService().playMenu();
       },
     );
+
+    // Verificar si se debe mostrar la historia
+    final story = gameStories[selectedLevel];
+    final bool _showStory =
+        story != null && !_dataManager.readStoryLevels.contains(selectedLevel);
+
+    if (_showStory) {
+      _game!.pauseEngine(); // Pausar el juego para mostrar la historia
+    }
+
     return Scaffold(
       body: Stack(
         children: [
           GestureDetector(
-            child: GameWidget(game: game),
-            onTapDown: (details) => game.handleTap(
-              Vector2(details.localPosition.dx, details.localPosition.dy),
-            ),
+            child: GameWidget(game: _game!),
+            onTapDown: (details) {
+              if (_game != null && !_game!.paused) {
+                _game!.handleTap(
+                  Vector2(details.localPosition.dx, details.localPosition.dy),
+                );
+              }
+            },
           ),
-          // Botón de configuración en la esquina superior derecha
-          Positioned(
-            top: 10,
-            right: 10,
-            child: Material(
-              color: Colors.transparent,
-              child: IconButton(
-                icon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
-                    shape: BoxShape.circle,
+          // Overlay de la historia
+          if (_showStory)
+            TerminalOverlay(
+              story: story,
+              onFinished: () {
+                _game!.resumeEngine();
+                _dataManager.markStoryAsRead(selectedLevel);
+                setState(() {}); // Para que el TerminalOverlay desaparezca
+              },
+            ),
+          // Botón de configuración (solo si no se muestra la historia)
+          if (!_showStory)
+            Positioned(
+              top: 10,
+              right: 10,
+              child: Material(
+                color: Colors.transparent,
+                child: IconButton(
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.6),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.settings,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
-                  child: const Icon(
-                    Icons.settings,
-                    color: Colors.white,
-                    size: 20,
-                  ),
+                  onPressed: () => _showSettingsDialog(context),
                 ),
-                onPressed: () => _showSettingsDialog(context),
               ),
             ),
-          ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
         tooltip: 'Volver al menú',
         onPressed: () {
           MusicService().playMenu();
-          setState(() => screen = AppScreen.inicio);
+          setState(() {
+            _game = null; // Limpiar instancia del juego
+            screen = AppScreen.inicio;
+          });
         },
         child: const Icon(Icons.home),
       ),
