@@ -16,6 +16,7 @@ class Boss extends PositionComponent
   final double attackInterval = 1.5; // Ataca cada 1.5 segundos
   final double attackDamage = 15.0;
   double speed = 5.0; // Boss movement speed (reducida para mejor colisión)
+  @override
   bool isColliding = false; // Para detener movimiento al colisionar
 
   Boss({

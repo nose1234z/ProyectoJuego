@@ -9,17 +9,24 @@ class Base extends PositionComponent with CollisionCallbacks {
   late HealthBar healthBar;
   final VoidCallback? onBaseDestroyed; // Declared as an instance field
 
+  // Sprites para diferentes estados de la torre
+  final Sprite normalSprite;
+  final Sprite damagedSprite;
+  final Sprite destroyedSprite;
+  late SpriteComponent spriteComponent;
+
   Base({
-    required Sprite sprite, // Now required
+    required this.normalSprite,
+    required this.damagedSprite,
+    required this.destroyedSprite,
     super.position,
     super.size,
     required this.health,
     required this.maxHealth,
     this.onBaseDestroyed,
   }) {
-    add(
-      SpriteComponent(sprite: sprite, size: size),
-    ); // Add SpriteComponent as child
+    spriteComponent = SpriteComponent(sprite: normalSprite, size: size);
+    add(spriteComponent); // Add SpriteComponent as child
     // Add a hitbox so enemies can collide with the base
     add(RectangleHitbox());
     healthBar = HealthBar(
@@ -35,6 +42,26 @@ class Base extends PositionComponent with CollisionCallbacks {
   void update(double dt) {
     super.update(dt);
     healthBar.updateHealth(health);
+
+    // Cambiar sprite según el porcentaje de vida
+    final healthPercentage = health / maxHealth;
+
+    if (healthPercentage <= 0.4) {
+      // Menos del 40% de vida - torre destruida
+      if (spriteComponent.sprite != destroyedSprite) {
+        spriteComponent.sprite = destroyedSprite;
+      }
+    } else if (healthPercentage <= 0.7) {
+      // Entre 40% y 70% de vida - torre dañada
+      if (spriteComponent.sprite != damagedSprite) {
+        spriteComponent.sprite = damagedSprite;
+      }
+    } else {
+      // Más del 70% de vida - torre normal
+      if (spriteComponent.sprite != normalSprite) {
+        spriteComponent.sprite = normalSprite;
+      }
+    }
   }
 
   void takeDamage(double amount) {

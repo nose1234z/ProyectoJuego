@@ -15,8 +15,8 @@ CREATE TABLE public.skins (
 
 -- Insertar skins por defecto ANTES de crear las foreign keys
 INSERT INTO public.skins (id, name, category, sprite_path, gem_cost, is_default) VALUES
-  ('tower_default', 'Torre Clásica', 'tower', 'base/torre.png', 0, true),
-  ('ally_default', 'IA Defensor', 'ally', 'base/AI.png', 0, true),
+  ('tower_default', 'Torre Clásica', 'tower', 'base/torres/torre.png', 0, true),
+  ('ally_default', 'IA Defensor', 'ally', 'base/aliados/AI.png', 0, true),
   ('projectile_default', 'Proyectil Básico', 'projectile', 'projectiles/projectile1.png', 0, true),
   ('projectile_fire', 'Proyectil de Fuego', 'projectile', 'projectiles/projectile2.png', 150, false)
 ON CONFLICT (id) DO NOTHING;

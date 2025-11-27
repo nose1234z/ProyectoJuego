@@ -27,10 +27,8 @@ class Projectile extends SpriteAnimationComponent
     animation = SpriteAnimation.spriteList([sprite], stepTime: 0.1, loop: true);
 
     // Calcular rotación inicial hacia el objetivo
-    // Ajustamos con -1.5708 radianes (-90 grados) porque el sprite apunta hacia la derecha
     final direction = targetPosition - startPosition;
-    angle =
-        direction.screenAngle() + 1.5708; // +90 grados para rotar correctamente
+    angle = direction.screenAngle();
   }
 
   @override
@@ -49,8 +47,7 @@ class Projectile extends SpriteAnimationComponent
       position += direction * speed * dt;
 
       // Actualizar el ángulo del sprite para que apunte hacia el objetivo
-      // +90 grados (1.5708 radianes) para compensar la orientación del sprite
-      angle = direction.screenAngle() + 1.5708;
+      angle = direction.screenAngle();
 
       // Verificar si llegó al objetivo
       if (position.distanceTo(target!.position) < 10) {
@@ -63,7 +60,7 @@ class Projectile extends SpriteAnimationComponent
       position += direction * speed * dt;
 
       // Actualizar el ángulo del sprite
-      angle = direction.screenAngle() + 1.5708;
+      angle = direction.screenAngle();
 
       // Verificar si llegó a la posición
       if (position.distanceTo(targetPosition) < 10) {

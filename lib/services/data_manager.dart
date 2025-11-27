@@ -15,15 +15,15 @@ class DataManager {
 
   // --- Skin System ---
   Set<String> ownedSkins = {
-    'base/torre.png',
-    'base/AI.png',
+    'base/torres/torre.png',
+    'base/aliados/AI.png',
     'projectiles/projectile1.png',
   }; // Skins que el usuario posee (las básicas + compradas)
   Set<int> readStoryLevels = {}; // IDs de las historias que el usuario ya leyó
 
   Map<String, String> equippedSkins = {
-    'tower': 'base/torre.png',
-    'ally': 'base/AI.png',
+    'tower': 'base/torres/torre.png',
+    'ally': 'base/aliados/AI.png',
     'projectile': 'projectiles/projectile1.png',
   }; // Skins actualmente equipadas
 
@@ -75,7 +75,8 @@ class DataManager {
       gems = profileResponse['gems'] as int;
 
       // Cargar niveles de historia leídos
-      final readLevelsData = profileResponse['read_story_levels'] as List<dynamic>?;
+      final readLevelsData =
+          profileResponse['read_story_levels'] as List<dynamic>?;
       if (readLevelsData != null) {
         readStoryLevels = readLevelsData.map((e) => e as int).toSet();
       }
@@ -167,13 +168,19 @@ class DataManager {
         .eq('profile_id', userId);
 
     ownedSkins.clear();
+
+    // Siempre agregar las skins predeterminadas
+    ownedSkins.add('base/torres/torre.png');
+    ownedSkins.add('base/aliados/AI.png');
+    ownedSkins.add('projectiles/projectile1.png');
+
     for (final item in playerSkinsResponse) {
       final skinData = item['skins'] as Map<String, dynamic>;
       ownedSkins.add(skinData['sprite_path'] as String);
     }
 
     // Debug: mostrar skins cargadas
-    print('DEBUG: Skins cargadas desde DB: $ownedSkins');
+    // print('DEBUG: Skins cargadas desde DB: $ownedSkins');
   }
 
   /// --- Gem Management ---
@@ -302,8 +309,9 @@ class DataManager {
     if (readStoryLevels.contains(levelId)) return;
 
     readStoryLevels.add(levelId);
-    await supabase.from('profiles').update({
-      'read_story_levels': readStoryLevels.toList(),
-    }).eq('id', supabase.auth.currentUser!.id);
+    await supabase
+        .from('profiles')
+        .update({'read_story_levels': readStoryLevels.toList()})
+        .eq('id', supabase.auth.currentUser!.id);
   }
 }

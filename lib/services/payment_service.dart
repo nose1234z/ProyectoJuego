@@ -77,8 +77,8 @@ class PaymentService {
     required String title,
   }) async {
     try {
-      print('Iniciando proceso de pago con Stripe...');
-      print('PackageId: $packageId, Gems: $gems, Price: $price');
+      // print('Iniciando proceso de pago con Stripe...');
+      // print('PackageId: $packageId, Gems: $gems, Price: $price');
 
       // Crear sesión de checkout
       final checkoutUrl = await createCheckoutSession(
@@ -87,7 +87,7 @@ class PaymentService {
         gems: gems,
       );
 
-      print('URL de checkout recibida: $checkoutUrl');
+      // print('URL de checkout recibida: $checkoutUrl');
 
       // Abrir en navegador externo
       final Uri url = Uri.parse(checkoutUrl);
@@ -104,7 +104,7 @@ class PaymentService {
 
       return true;
     } catch (e) {
-      print('Error detallado en el pago: $e');
+      // print('Error detallado en el pago: $e');
       rethrow;
     }
   }
@@ -154,7 +154,7 @@ class PaymentService {
 
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      print('Error al obtener transacciones: $e');
+      // print('Error al obtener transacciones: $e');
       return [];
     }
   }

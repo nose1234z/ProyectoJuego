@@ -40,13 +40,13 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (String url) {
-            print('Página cargando: $url');
+            // print('Página cargando: $url');
             setState(() {
               _isLoading = true;
             });
           },
           onPageFinished: (String url) {
-            print('Página cargada: $url');
+            // print('Página cargada: $url');
             setState(() {
               _isLoading = false;
             });
@@ -55,15 +55,15 @@ class _PaymentWebViewScreenState extends State<PaymentWebViewScreen> {
             _checkPaymentResult(url);
           },
           onWebResourceError: (WebResourceError error) {
-            print('Error en WebView: ${error.description}');
+            // print('Error en WebView: ${error.description}');
           },
           onNavigationRequest: (NavigationRequest request) {
-            print('Navegación solicitada: ${request.url}');
+            // print('Navegación solicitada: ${request.url}');
 
             // Interceptar esquemas personalizados
             if (request.url.startsWith('mercadopago://') ||
                 request.url.startsWith('iadefender://')) {
-              print('Esquema personalizado detectado');
+              // print('Esquema personalizado detectado');
               _checkPaymentResult(request.url);
               return NavigationDecision.prevent;
             }

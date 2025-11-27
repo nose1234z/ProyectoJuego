@@ -243,7 +243,6 @@ class MainMenuApp extends StatefulWidget {
 
 enum AppScreen { inicio, seleccion, tienda, personalizacion, juego }
 
-
 class _MainMenuAppState extends State<MainMenuApp> with WidgetsBindingObserver {
   AppScreen screen = AppScreen.inicio;
   int selectedLevel = 1;
@@ -380,7 +379,7 @@ class _MainMenuAppState extends State<MainMenuApp> with WidgetsBindingObserver {
                     width: 50,
                     height: 50,
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.3),
+                      color: Colors.black.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: Colors.cyan, width: 2),
                     ),
@@ -569,16 +568,59 @@ class _MainMenuAppState extends State<MainMenuApp> with WidgetsBindingObserver {
   Widget _buildLevelButton(int level) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0),
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 50),
-          textStyle: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+      child: Container(
+        width: 140,
+        height: 140,
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.7),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: const Color(0xFF00F5FF), width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF00F5FF).withValues(alpha: 0.5),
+              blurRadius: 20,
+              spreadRadius: 0,
+            ),
+          ],
         ),
-        onPressed: () => setState(() {
-          selectedLevel = level;
-          screen = AppScreen.juego;
-        }),
-        child: Text('Nivel $level'),
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          onPressed: () => setState(() {
+            selectedLevel = level;
+            screen = AppScreen.juego;
+          }),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'NIVEL',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w300,
+                  color: const Color(0xFF00F5FF).withValues(alpha: 0.7),
+                  letterSpacing: 3,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '$level',
+                style: const TextStyle(
+                  fontSize: 48,
+                  fontWeight: FontWeight.w200,
+                  color: Color(0xFF00F5FF),
+                  letterSpacing: 2,
+                  shadows: [Shadow(color: Color(0xFF00F5FF), blurRadius: 15)],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -629,7 +671,7 @@ class _MainMenuAppState extends State<MainMenuApp> with WidgetsBindingObserver {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.7),
+                color: Colors.black.withValues(alpha: 0.7),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: Colors.amber, width: 2),
               ),
@@ -653,57 +695,193 @@ class _MainMenuAppState extends State<MainMenuApp> with WidgetsBindingObserver {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 40,
-                      vertical: 20,
+                // Botón JUGAR - Estilo TRON
+                Container(
+                  width: 320,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: const Color(0xFF00F5FF),
+                      width: 2,
                     ),
-                    textStyle: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF00F5FF).withValues(alpha: 0.6),
+                        blurRadius: 20,
+                        spreadRadius: 0,
+                      ),
+                      BoxShadow(
+                        color: const Color(0xFF00F5FF).withValues(alpha: 0.3),
+                        blurRadius: 40,
+                        spreadRadius: 0,
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    onPressed: () =>
+                        setState(() => screen = AppScreen.seleccion),
+                    child: const Text(
+                      'JUGAR',
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w300,
+                        color: Color(0xFF00F5FF),
+                        letterSpacing: 8,
+                        shadows: [
+                          Shadow(color: Color(0xFF00F5FF), blurRadius: 10),
+                        ],
+                      ),
                     ),
                   ),
-                  onPressed: () => setState(() => screen = AppScreen.seleccion),
-                  child: const Text('JUGAR'),
                 ),
                 const SizedBox(height: 20),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 30,
-                      vertical: 15,
+
+                // Botón Tienda
+                Container(
+                  width: 320,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: const Color(0xFF00F5FF),
+                      width: 2,
                     ),
-                    textStyle: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF00F5FF).withValues(alpha: 0.4),
+                        blurRadius: 15,
+                        spreadRadius: 0,
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    onPressed: () => setState(() => screen = AppScreen.tienda),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.shopping_bag,
+                          size: 26,
+                          color: Color(0xFF00F5FF),
+                        ),
+                        SizedBox(width: 12),
+                        Text(
+                          'TIENDA',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w300,
+                            color: Color(0xFF00F5FF),
+                            letterSpacing: 4,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  onPressed: () => setState(() => screen = AppScreen.tienda),
-                  child: const Text('Tienda'),
                 ),
                 const SizedBox(height: 20),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 30,
-                      vertical: 15,
+
+                // Botón Personalización
+                Container(
+                  width: 320,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: const Color(0xFF00F5FF),
+                      width: 2,
                     ),
-                    textStyle: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF00F5FF).withValues(alpha: 0.4),
+                        blurRadius: 15,
+                        spreadRadius: 0,
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    onPressed: () =>
+                        setState(() => screen = AppScreen.personalizacion),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.style, size: 24, color: Color(0xFF00F5FF)),
+                        SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            'PERSONALIZACIÓN',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w300,
+                              color: Color(0xFF00F5FF),
+                              letterSpacing: 1.5,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  onPressed: () =>
-                      setState(() => screen = AppScreen.personalizacion),
-                  child: const Text('Personalización'),
                 ),
                 const SizedBox(height: 40),
-                ElevatedButton(
-                  onPressed: () async {
-                    await supabase.auth.signOut();
-                  },
-                  child: const Text('Cerrar Sesión'),
+
+                // Botón Cerrar Sesión - Estilo TRON minimalista
+                Container(
+                  width: 200,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: const Color(0xFF00F5FF).withValues(alpha: 0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    onPressed: () async {
+                      await supabase.auth.signOut();
+                    },
+                    child: const Text(
+                      'CERRAR SESIÓN',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w300,
+                        color: Color(0xFF00F5FF),
+                        letterSpacing: 2,
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -724,15 +902,16 @@ class _MainMenuAppState extends State<MainMenuApp> with WidgetsBindingObserver {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Text(
-                  'Selecciona un nivel',
+                  'SELECCIONA UN NIVEL',
                   style: TextStyle(
-                    fontSize: 32,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    shadows: [Shadow(color: Colors.black, blurRadius: 4)],
+                    fontSize: 28,
+                    color: Color(0xFF00F5FF),
+                    fontWeight: FontWeight.w300,
+                    letterSpacing: 6,
+                    shadows: [Shadow(color: Color(0xFF00F5FF), blurRadius: 15)],
                   ),
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 60),
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
@@ -745,10 +924,44 @@ class _MainMenuAppState extends State<MainMenuApp> with WidgetsBindingObserver {
                     ],
                   ),
                 ),
-                const SizedBox(height: 40),
-                ElevatedButton(
-                  onPressed: () => setState(() => screen = AppScreen.inicio),
-                  child: const Text('Volver'),
+                const SizedBox(height: 60),
+                Container(
+                  width: 200,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: const Color(0xFF00F5FF),
+                      width: 2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF00F5FF).withValues(alpha: 0.3),
+                        blurRadius: 15,
+                        spreadRadius: 0,
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    onPressed: () => setState(() => screen = AppScreen.inicio),
+                    child: const Text(
+                      'VOLVER',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w300,
+                        color: Color(0xFF00F5FF),
+                        letterSpacing: 4,
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -806,10 +1019,11 @@ class _MainMenuAppState extends State<MainMenuApp> with WidgetsBindingObserver {
               skins: [
                 {
                   'name': 'Torre Clásica',
-                  'path': 'base/torre.png',
+                  'path': 'base/torres/torre.png',
                   'owned': true,
                   'equipped':
-                      _dataManager.equippedSkins['tower'] == 'base/torre.png',
+                      _dataManager.equippedSkins['tower'] ==
+                      'base/torres/torre.png',
                 },
               ],
               onEquip: (skinPath) async {
@@ -845,10 +1059,11 @@ class _MainMenuAppState extends State<MainMenuApp> with WidgetsBindingObserver {
               skins: [
                 {
                   'name': 'IA Defensor',
-                  'path': 'base/AI.png',
+                  'path': 'base/aliados/AI.png',
                   'owned': true,
                   'equipped':
-                      _dataManager.equippedSkins['ally'] == 'base/AI.png',
+                      _dataManager.equippedSkins['ally'] ==
+                      'base/aliados/AI.png',
                 },
               ],
               onEquip: (skinPath) async {
@@ -1006,8 +1221,8 @@ class _MainMenuAppState extends State<MainMenuApp> with WidgetsBindingObserver {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: equipped
-            ? Colors.cyan.withOpacity(0.2)
-            : Colors.black.withOpacity(0.3),
+            ? Colors.cyan.withValues(alpha: 0.2)
+            : Colors.black.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: equipped ? Colors.cyan : Colors.white24,
@@ -1021,9 +1236,12 @@ class _MainMenuAppState extends State<MainMenuApp> with WidgetsBindingObserver {
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.cyan.withOpacity(0.5), width: 1),
+              border: Border.all(
+                color: Colors.cyan.withValues(alpha: 0.5),
+                width: 1,
+              ),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(7),
@@ -1071,7 +1289,7 @@ class _MainMenuAppState extends State<MainMenuApp> with WidgetsBindingObserver {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.3),
+                color: Colors.red.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Colors.red, width: 1),
               ),
@@ -1277,6 +1495,9 @@ class _MainMenuAppState extends State<MainMenuApp> with WidgetsBindingObserver {
                           ),
                         ),
                         onPressed: () async {
+                          final scaffoldMessenger = ScaffoldMessenger.of(
+                            context,
+                          );
                           try {
                             final success = await PaymentService.processPayment(
                               packageId: package['id'],
@@ -1287,7 +1508,7 @@ class _MainMenuAppState extends State<MainMenuApp> with WidgetsBindingObserver {
 
                             if (!mounted) return;
                             if (success) {
-                              ScaffoldMessenger.of(context).showSnackBar(
+                              scaffoldMessenger.showSnackBar(
                                 const SnackBar(
                                   content: Text(
                                     'Abriendo Mercado Pago en el navegador. Completa el pago y regresa a la app.',
@@ -1299,7 +1520,7 @@ class _MainMenuAppState extends State<MainMenuApp> with WidgetsBindingObserver {
                             }
                           } catch (e) {
                             if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            scaffoldMessenger.showSnackBar(
                               SnackBar(
                                 content: Text('Error: ${e.toString()}'),
                                 backgroundColor: Colors.red,
@@ -1356,10 +1577,10 @@ class _MainMenuAppState extends State<MainMenuApp> with WidgetsBindingObserver {
 
     // Verificar si se debe mostrar la historia
     final story = gameStories[selectedLevel];
-    final bool _showStory =
+    final bool showStory =
         story != null && !_dataManager.readStoryLevels.contains(selectedLevel);
 
-    if (_showStory) {
+    if (showStory) {
       _game!.pauseEngine(); // Pausar el juego para mostrar la historia
     }
 
@@ -1377,7 +1598,7 @@ class _MainMenuAppState extends State<MainMenuApp> with WidgetsBindingObserver {
             },
           ),
           // Overlay de la historia
-          if (_showStory)
+          if (showStory)
             TerminalOverlay(
               story: story,
               onFinished: () {
@@ -1387,7 +1608,7 @@ class _MainMenuAppState extends State<MainMenuApp> with WidgetsBindingObserver {
               },
             ),
           // Botón de configuración (solo si no se muestra la historia)
-          if (!_showStory)
+          if (!showStory)
             Positioned(
               top: 10,
               right: 10,
@@ -1397,7 +1618,7 @@ class _MainMenuAppState extends State<MainMenuApp> with WidgetsBindingObserver {
                   icon: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.6),
+                      color: Colors.black.withValues(alpha: 0.6),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
@@ -1477,7 +1698,11 @@ class MyGame extends FlameGame with HasCollisionDetection {
       enemiesRemainingInCurrentWave = 0;
 
   late List<Sprite> enemySprites;
-  late Sprite baseSprite, playerUnitSprite, bossSprite;
+  late Sprite baseSprite,
+      baseDamagedSprite,
+      baseDestroyedSprite,
+      playerUnitSprite,
+      bossSprite;
   final Random _random = Random();
   late Map<String, UpgradeButton> upgradeButtons;
 
@@ -1546,18 +1771,30 @@ class MyGame extends FlameGame with HasCollisionDetection {
     try {
       // Usar skins equipadas del DataManager
       final towerSkin =
-          dataManager.getEquippedSkin('tower') ?? 'base/torre.png';
-      final allySkin = dataManager.getEquippedSkin('ally') ?? 'base/AI.png';
+          dataManager.getEquippedSkin('tower') ?? 'base/torres/torre.png';
+      final allySkin =
+          dataManager.getEquippedSkin('ally') ?? 'base/aliados/AI.png';
 
-      baseSprite = await loadSprite(towerSkin);
+      // Cargar sprites de la torre en diferentes estados
+      // Obtener el nombre base de la torre sin extensión
+      final towerBaseName = towerSkin.replaceAll('.png', '');
+
+      baseSprite = await loadSprite('$towerBaseName.png');
+      baseDamagedSprite = await loadSprite('base/torres/torreDañada.png');
+      baseDestroyedSprite = await loadSprite('base/torres/torreDestruida.png');
+
       playerUnitSprite = await loadSprite(allySkin);
     } catch (e) {
       baseSprite = enemySprites[0];
+      baseDamagedSprite = enemySprites[0];
+      baseDestroyedSprite = enemySprites[0];
       playerUnitSprite = enemySprites[1];
     }
 
     playerBase = Base(
-      sprite: baseSprite,
+      normalSprite: baseSprite,
+      damagedSprite: baseDamagedSprite,
+      destroyedSprite: baseDestroyedSprite,
       position: Vector2(100, size.y - 300),
       size: Vector2(100, 200),
       health: baseMaxHealth,
