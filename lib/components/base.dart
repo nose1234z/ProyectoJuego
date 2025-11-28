@@ -9,23 +9,19 @@ class Base extends PositionComponent with CollisionCallbacks {
   late HealthBar healthBar;
   final VoidCallback? onBaseDestroyed; // Declared as an instance field
 
-  // Sprites para diferentes estados de la torre
-  final Sprite normalSprite;
-  final Sprite damagedSprite;
-  final Sprite destroyedSprite;
+  // Sprite sheet con las 3 fases de la torre
+  final List<Sprite> towerSprites; // [0: normal, 1: dañada, 2: destruida]
   late SpriteComponent spriteComponent;
 
   Base({
-    required this.normalSprite,
-    required this.damagedSprite,
-    required this.destroyedSprite,
+    required this.towerSprites,
     super.position,
     super.size,
     required this.health,
     required this.maxHealth,
     this.onBaseDestroyed,
   }) {
-    spriteComponent = SpriteComponent(sprite: normalSprite, size: size);
+    spriteComponent = SpriteComponent(sprite: towerSprites[0], size: size);
     add(spriteComponent); // Add SpriteComponent as child
     // Add a hitbox so enemies can collide with the base
     add(RectangleHitbox());
@@ -45,22 +41,21 @@ class Base extends PositionComponent with CollisionCallbacks {
 
     // Cambiar sprite según el porcentaje de vida
     final healthPercentage = health / maxHealth;
+    Sprite targetSprite;
 
     if (healthPercentage <= 0.4) {
-      // Menos del 40% de vida - torre destruida
-      if (spriteComponent.sprite != destroyedSprite) {
-        spriteComponent.sprite = destroyedSprite;
-      }
+      // Menos del 40% de vida - torre destruida (frame 2)
+      targetSprite = towerSprites[2];
     } else if (healthPercentage <= 0.7) {
-      // Entre 40% y 70% de vida - torre dañada
-      if (spriteComponent.sprite != damagedSprite) {
-        spriteComponent.sprite = damagedSprite;
-      }
+      // Entre 40% y 70% de vida - torre dañada (frame 1)
+      targetSprite = towerSprites[1];
     } else {
-      // Más del 70% de vida - torre normal
-      if (spriteComponent.sprite != normalSprite) {
-        spriteComponent.sprite = normalSprite;
-      }
+      // Más del 70% de vida - torre normal (frame 0)
+      targetSprite = towerSprites[0];
+    }
+
+    if (spriteComponent.sprite != targetSprite) {
+      spriteComponent.sprite = targetSprite;
     }
   }
 

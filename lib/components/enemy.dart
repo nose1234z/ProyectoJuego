@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
 import 'package:iadenfender/main.dart'; // Import MyGame to access its properties
@@ -19,19 +20,29 @@ class Enemy extends PositionComponent
   Barricade? _targetBarricade;
   late HealthBar healthBar;
 
+  // Variables para el efecto de levitación
+  double _floatTimer = 0.0;
+  final double _floatSpeed = 2.0; // Velocidad de la levitación
+  final double _floatAmplitude = 8.0; // Qué tan alto sube/baja (en píxeles)
+  final bool shouldFloat; // Determina si este enemigo debe levitar
+  late SpriteAnimationComponent _spriteComponent;
+
   Enemy({
-    required Sprite sprite, // Now required
+    required SpriteAnimation animation, // Now uses animation
     super.position,
     super.size,
     required this.health,
     required this.speed,
     required this.damage,
     required this.goldValue,
+    this.shouldFloat = false, // Por defecto no levita
   }) : maxHealth = health {
     // Initialize maxHealth
-    add(
-      SpriteComponent(sprite: sprite, size: size),
-    ); // Add SpriteComponent as child
+    _spriteComponent = SpriteAnimationComponent(
+      animation: animation,
+      size: size,
+    );
+    add(_spriteComponent); // Add SpriteAnimationComponent as child
     add(RectangleHitbox()); // Add a hitbox for collision detection
     healthBar = HealthBar(
       currentHealth: health,
@@ -46,6 +57,14 @@ class Enemy extends PositionComponent
   @override
   void update(double dt) {
     super.update(dt);
+
+    // Efecto de levitación (sin mover hitbox, solo el sprite)
+    if (shouldFloat) {
+      _floatTimer += dt * _floatSpeed;
+      final floatOffset = math.sin(_floatTimer) * _floatAmplitude;
+      _spriteComponent.position.y = floatOffset;
+    }
+
     if (!_isAttacking) {
       x -= speed * dt; // Move enemy to the left
     } else {

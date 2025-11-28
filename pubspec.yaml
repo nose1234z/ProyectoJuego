@@ -28,7 +28,7 @@ flutter:
   uses-material-design: true
   assets:
     # Enemies
-    - assets/images/enemies/gusano.png
+    - assets/images/enemies/gusanoSprite.png
     - assets/images/enemies/malware.png
     # Escenarios
     - assets/images/escenario/mapa1.png
@@ -37,15 +37,13 @@ flutter:
     - assets/images/escenario/mapa2.png
     - assets/images/escenario/mapa3.png
     - assets/images/escenario/mapa4.png
-    # Torres (incluye estados de daño)
-    - assets/images/base/torres/torre.png
-    - assets/images/base/torres/torreDañada.png
-    - assets/images/base/torres/torreDestruida.png
+    # Torres - sprite sheet con 3 estados (normal, dañada, destruida)
+    - assets/images/base/torres/torreSpriteSheet.png
     # Aliados
     - assets/images/base/aliados/AI.png
     # Boss
     - assets/images/boss/VOID.png
-    - assets/images/boss/ADWARE.png
+    - assets/images/boss/ADWAREsprite.png
     # Projectiles
     - assets/images/projectiles/projectile1.png
     - assets/images/projectiles/projectile2.png

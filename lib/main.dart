@@ -1697,12 +1697,12 @@ class MyGame extends FlameGame with HasCollisionDetection {
       enemiesSpawnedInCurrentWave = 0,
       enemiesRemainingInCurrentWave = 0;
 
-  late List<Sprite> enemySprites;
+  late List<SpriteAnimation> enemyAnimations;
   late Sprite baseSprite,
       baseDamagedSprite,
       baseDestroyedSprite,
-      playerUnitSprite,
-      bossSprite;
+      playerUnitSprite;
+  late SpriteAnimation bossAnimation;
   final Random _random = Random();
   late Map<String, UpgradeButton> upgradeButtons;
 
@@ -1762,39 +1762,122 @@ class MyGame extends FlameGame with HasCollisionDetection {
     final bg = await loadSprite(mapPath);
     add(SpriteComponent(sprite: bg, size: size));
 
-    enemySprites = await Future.wait([
-      loadSprite('enemies/malware.png'),
-      loadSprite('enemies/gusano.png'),
-    ]);
-    bossSprite = await loadSprite('boss/ADWARE.png');
+    // Cargar sprite estático del malware con efecto de levitación
+    final malwareSprite = await loadSprite('enemies/malware.png');
+    final malwareAnimation = SpriteAnimation.spriteList(
+      [malwareSprite],
+      stepTime: 1.0,
+      loop: true,
+    );
+
+    // Cargar sprite sheet animado del gusano (usar las primeras 2 filas: 6 frames)
+    final gusanoImage = await images.load('enemies/gusanoSprite.png');
+    final gusanoFrameWidthInt = (gusanoImage.width / 3).floor();
+    final gusanoFrameHeightInt = (gusanoImage.height / 3).floor();
+    final gusanoFrameWidth = gusanoFrameWidthInt.toDouble();
+    final gusanoFrameHeight = gusanoFrameHeightInt.toDouble();
+
+    final gusanoFrames = <Sprite>[];
+    // Usar las primeras 2 filas (6 frames)
+    for (int row = 0; row < 2; row++) {
+      for (int col = 0; col < 3; col++) {
+        gusanoFrames.add(
+          Sprite(
+            gusanoImage,
+            srcPosition: Vector2(
+              col * gusanoFrameWidth,
+              row * gusanoFrameHeight + 8,
+            ), // +8 en Y para cortar más arriba
+            srcSize: Vector2(
+              gusanoFrameWidth - 8,
+              gusanoFrameHeight,
+            ), // Altura normal para incluir más abajo
+          ),
+        );
+      }
+    }
+
+    final gusanoAnimation = SpriteAnimation.spriteList(
+      gusanoFrames,
+      stepTime: 0.13,
+      loop: true,
+    );
+
+    enemyAnimations = [malwareAnimation, gusanoAnimation];
+
+    // Cargar sprite sheet animado del boss (solo usar la primera fila de 4 frames)
+    final bossImage = await images.load('boss/ADWAREsprite.png');
+    final frameWidth = bossImage.width / 4;
+    final frameHeight = bossImage.height / 2;
+
+    // Crear solo los 4 sprites de la primera fila para evitar el rebote
+    final bossFrames = <Sprite>[];
+    for (int col = 0; col < 4; col++) {
+      bossFrames.add(
+        Sprite(
+          bossImage,
+          srcPosition: Vector2(col * frameWidth, 0),
+          srcSize: Vector2(frameWidth, frameHeight),
+        ),
+      );
+    }
+
+    bossAnimation = SpriteAnimation.spriteList(
+      bossFrames,
+      stepTime: 0.2,
+      loop: true,
+    );
 
     try {
       // Usar skins equipadas del DataManager
-      final towerSkin =
-          dataManager.getEquippedSkin('tower') ?? 'base/torres/torre.png';
       final allySkin =
           dataManager.getEquippedSkin('ally') ?? 'base/aliados/AI.png';
 
-      // Cargar sprites de la torre en diferentes estados
-      // Obtener el nombre base de la torre sin extensión
-      final towerBaseName = towerSkin.replaceAll('.png', '');
+      // Cargar sprite sheet de la torre (3 frames horizontales: normal, dañada, destruida)
+      final spriteSheetImage = await images.load(
+        'base/torres/torreSpriteSheet.png',
+      );
 
-      baseSprite = await loadSprite('$towerBaseName.png');
-      baseDamagedSprite = await loadSprite('base/torres/torreDañada.png');
-      baseDestroyedSprite = await loadSprite('base/torres/torreDestruida.png');
+      // Calcular el ancho exacto de cada frame usando enteros
+      final totalWidth = spriteSheetImage.width;
+      final frameWidthInt = (totalWidth / 3).floor();
+      final frameWidth = frameWidthInt.toDouble();
+      final frameHeight = spriteSheetImage.height.toDouble();
+
+      // Crear sprites manualmente especificando las posiciones exactas
+      baseSprite = Sprite(
+        spriteSheetImage,
+        srcPosition: Vector2(0, 0),
+        srcSize: Vector2(
+          frameWidth - 13,
+          frameHeight,
+        ), // Restar 13 píxeles para eliminar línea extra
+      );
+
+      baseDamagedSprite = Sprite(
+        spriteSheetImage,
+        srcPosition: Vector2(frameWidthInt.toDouble(), 0),
+        srcSize: Vector2(frameWidth - 13, frameHeight),
+      );
+
+      baseDestroyedSprite = Sprite(
+        spriteSheetImage,
+        srcPosition: Vector2((frameWidthInt * 2).toDouble(), 0),
+        srcSize: Vector2(frameWidth - 13, frameHeight),
+      );
 
       playerUnitSprite = await loadSprite(allySkin);
     } catch (e) {
-      baseSprite = enemySprites[0];
-      baseDamagedSprite = enemySprites[0];
-      baseDestroyedSprite = enemySprites[0];
-      playerUnitSprite = enemySprites[1];
+      // Usar frame estático como fallback
+      final fallbackSprite = enemyAnimations[0].frames[0].sprite;
+      baseSprite = fallbackSprite;
+      baseDamagedSprite = fallbackSprite;
+      baseDestroyedSprite = fallbackSprite;
+      playerUnitSprite = enemyAnimations[1].frames[0].sprite;
     }
 
     playerBase = Base(
-      normalSprite: baseSprite,
-      damagedSprite: baseDamagedSprite,
-      destroyedSprite: baseDestroyedSprite,
+      towerSprites: [baseSprite, baseDamagedSprite, baseDestroyedSprite],
       position: Vector2(100, size.y - 300),
       size: Vector2(100, 200),
       health: baseMaxHealth,
@@ -2045,8 +2128,9 @@ class MyGame extends FlameGame with HasCollisionDetection {
 
   void spawnHordeEnemy() {
     final enemyHealth = 30.0 + (currentWaveNumber * currentWaveNumber * 8);
+    final enemyType = _random.nextInt(enemyAnimations.length);
     final enemy = Enemy(
-      sprite: enemySprites[_random.nextInt(enemySprites.length)],
+      animation: enemyAnimations[enemyType],
       position: Vector2(
         size.x + 25 + _random.nextDouble() * 100,
         size.y * 0.4 + _random.nextDouble() * 150,
@@ -2056,6 +2140,7 @@ class MyGame extends FlameGame with HasCollisionDetection {
       speed: 30 + _random.nextDouble() * 15,
       damage: 10,
       goldValue: (10 + (currentWaveNumber * currentWaveNumber * 2)).toDouble(),
+      shouldFloat: enemyType == 0, // Solo el malware (índice 0) levita
     );
     add(enemy);
   }
@@ -2066,7 +2151,7 @@ class MyGame extends FlameGame with HasCollisionDetection {
     gameStatusText.text = 'Defeat the Boss!';
     final bossHealth = baseBossHealth * (1 + (baseHealthLevel * 0.25));
     currentBoss = Boss(
-      sprite: bossSprite,
+      animation: bossAnimation,
       position: Vector2(size.x - 300, size.y / 2 - 100),
       size: Vector2(200, 200),
       health: bossHealth,
@@ -2090,8 +2175,9 @@ class MyGame extends FlameGame with HasCollisionDetection {
   void spawnEnemy() {
     if (enemiesSpawnedInCurrentWave < enemiesToSpawnInCurrentWave) {
       final enemyHealth = 30.0 + (currentWaveNumber * currentWaveNumber * 8);
+      final enemyType = _random.nextInt(enemyAnimations.length);
       final enemy = Enemy(
-        sprite: enemySprites[_random.nextInt(enemySprites.length)],
+        animation: enemyAnimations[enemyType],
         position: Vector2(
           size.x + 25,
           size.y * 0.5 + _random.nextDouble() * 100 - 25,
@@ -2102,6 +2188,7 @@ class MyGame extends FlameGame with HasCollisionDetection {
         damage: 10,
         goldValue: (10 + (currentWaveNumber * currentWaveNumber * 2))
             .toDouble(),
+        shouldFloat: enemyType == 0, // Solo el malware (índice 0) levita
       );
       add(enemy);
       enemiesSpawnedInCurrentWave++;

@@ -20,12 +20,12 @@ class Boss extends PositionComponent
   bool isColliding = false; // Para detener movimiento al colisionar
 
   Boss({
-    required Sprite sprite,
+    required SpriteAnimation animation,
     super.position,
     super.size,
     required this.health,
   }) : maxHealth = health {
-    add(SpriteComponent(sprite: sprite, size: size));
+    add(SpriteAnimationComponent(animation: animation, size: size));
     // Hitbox sólido que cubre todo el sprite del boss
     add(RectangleHitbox(size: size, position: Vector2.zero()));
     healthBar = HealthBar(
